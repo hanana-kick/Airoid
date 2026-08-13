@@ -3,15 +3,9 @@ package com.airoid
 import android.app.Activity
 import android.view.WindowInsets as AndroidWindowInsets
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -58,35 +52,22 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.lerp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 
 /**
  * 미러링 대기 화면. 검정 배경을 사용한다.
- * Airoid 아래에 AirPlay 기기 이름과 같은 페어링 코드를 익스프레시브 스타일로 표시한다:
- * 코드 필(primaryContainer)의 코너 반경이 모프(모핑 셰이프)되고, 코드 옆에 AirPlay 아이콘이 있어
- * "이 기기로 에어플레이를 연결하라"는 의도를 보여준다.
- * "미러링 대기 중" 텍스트는 점(···) 애니메이션으로 대기 상태를 표현한다.
- * 연결이 시작되면(connecting) 필이 스프링으로 커지고 진행 인디케이터가 나타난다.
+ * Airoid 아래에 AirPlay 기기 이름과 같은 페어링 코드를 표시한다:
+ * 코드 필(primaryContainer)은 고정 모양이고, 옆에 SF Symbol "rectangle.on.rectangle" 스타일
+ * 화면 미러링 아이콘이 있어 "이 기기로 에어플레이를 연결하라"는 의도를 보여준다.
+ * "미러링 대기 중" 텍스트 대신 로딩 애니메이션(스피너)으로 대기 상태를 표현한다.
+ * 연결이 시작되면(connecting) 필이 스프링으로 커지고 진행 인디케이터+텍스트가 나타난다.
  */
 @Composable
 fun StandbyScreen(connecting: Boolean) {
     val scheme = MaterialTheme.colorScheme
     val context = LocalContext.current.applicationContext
     val code = remember { PairingCode.get(context) }
-
-    // 익스프레시브 셰이프 모프: 코너 반경 28↔56dp (스케일 펄스 없음)
-    val breathing by rememberInfiniteTransition(label = "standbyBreath").animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "breath",
-    )
-    val corner = lerp(28.dp, 56.dp, breathing)
 
     // 연결 시작 시 스프링 버프
     val connectScale by animateFloatAsState(
@@ -97,20 +78,6 @@ fun StandbyScreen(connecting: Boolean) {
         ),
         label = "connectScale",
     )
-
-    // "미러링 대기 중" 점(···) 애니메이션
-    val dotTransition = rememberInfiniteTransition(label = "waitingDots")
-    val dotAlphas = List(3) { i ->
-        dotTransition.animateFloat(
-            initialValue = 0.25f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 500, delayMillis = i * 250),
-                repeatMode = RepeatMode.Reverse,
-            ),
-            label = "dot$i",
-        )
-    }
 
     Box(
         Modifier
@@ -131,7 +98,7 @@ fun StandbyScreen(connecting: Boolean) {
                 fontWeight = FontWeight.Bold
             )
             Surface(
-                shape = RoundedCornerShape(corner),
+                shape = RoundedCornerShape(28.dp),
                 color = scheme.primaryContainer,
                 modifier = Modifier
                     .padding(top = 16.dp)
@@ -182,23 +149,12 @@ fun StandbyScreen(connecting: Boolean) {
                         )
                     }
                 } else {
-                    Row(
-                        Modifier.padding(top = 28.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.standby_waiting),
-                            color = scheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        dotAlphas.forEach { d ->
-                            Text(
-                                text = "·",
-                                color = scheme.onSurfaceVariant.copy(alpha = d.value),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                        }
-                    }
+                    // 로딩 애니메이션: 대기 상태를 텍스트 없이 스피너로 표현
+                    CircularProgressIndicator(
+                        modifier = Modifier.padding(top = 28.dp).size(20.dp),
+                        color = scheme.primary,
+                        strokeWidth = 2.5.dp,
+                    )
                 }
             }
         }
@@ -207,7 +163,8 @@ fun StandbyScreen(connecting: Boolean) {
 
 /**
  * 화면 미러링(에어플레이) 아이콘 — SF Symbol "rectangle.on.rectangle" 참조:
- * 대각선으로 겹친 둥근 **외곽선** 사각형 두 개 (뒤쪽 좌상, 앞쪽 우하).
+ * 가로형 모니터 비율(13×10.5)의 둥근 **외곽선** 사각형 두 개가 대각선으로 겹친 형태
+ * (뒤쪽 좌상, 앞쪽 우하). viewBox 24 기준 SF 근사 좌표를 그대로 쓴다.
  */
 private val MirrorIcon: ImageVector = ImageVector.Builder(
     name = "ScreenMirror",
@@ -216,23 +173,23 @@ private val MirrorIcon: ImageVector = ImageVector.Builder(
     viewportWidth = 24f,
     viewportHeight = 24f,
 ).apply {
-    // 뒤 사각형 (좌상)
+    // 뒤 사각형 (좌상): x 3.5, y 3.5, 13×10.5
     path(
         stroke = SolidColor(Color.Black),
-        strokeLineWidth = 1.8f,
+        strokeLineWidth = 1.6f,
         strokeLineCap = StrokeCap.Round,
         strokeLineJoin = StrokeJoin.Round,
     ) {
-        roundedRect(2.5f, 2.5f, 16.5f, 16.5f, 3f)
+        roundedRect(3.5f, 3.5f, 16.5f, 14f, 2f)
     }
-    // 앞 사각형 (우하, 겹침)
+    // 앞 사각형 (우하): x 7.5, y 9.5, 13×10.5
     path(
         stroke = SolidColor(Color.Black),
-        strokeLineWidth = 1.8f,
+        strokeLineWidth = 1.6f,
         strokeLineCap = StrokeCap.Round,
         strokeLineJoin = StrokeJoin.Round,
     ) {
-        roundedRect(7.5f, 7.5f, 21.5f, 21.5f, 3f)
+        roundedRect(7.5f, 9.5f, 20.5f, 20f, 2f)
     }
 }.build()
 
