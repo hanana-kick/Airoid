@@ -862,16 +862,6 @@ void raop_remove_known_connections(raop_t * raop) {
     httpd_remove_known_connections(raop->httpd);
 }
 
-/* 실험(Sidecar 방식): HTTP 연결은 유지한 채 비디오 RTP 세션만 중지해,
-   송신기가 새 광고 해상도로 비디오를 재-SETUP하도록 유도한다.
-   송신기가 재-SETUP하지 않으면 비디오는 정지된 채 유지된다. */
-void raop_reconfigure_video(raop_t *raop) {
-    raop_conn_t *conn = (raop_conn_t *) httpd_get_connection_by_type(raop->httpd, CONNECTION_TYPE_RAOP, 1);
-    if (conn && conn->raop_rtp_mirror) {
-        raop_rtp_mirror_stop(conn->raop_rtp_mirror);
-    }
-}
-
 void raop_remove_hls_connections(raop_t * raop) {
     raop->video_play_conn = NULL;
     httpd_remove_connections_by_type(raop->httpd, CONNECTION_TYPE_HLS);

@@ -214,19 +214,6 @@ Java_com_airoid_bridge_NativeBridge_nativeDisconnectClients(
     LOGI("All AirPlay clients disconnected");
 }
 
-extern "C"
-JNIEXPORT void JNICALL
-Java_com_airoid_bridge_NativeBridge_nativeReconfigureVideo(
-        JNIEnv *env, jobject thiz, jlong handle) {
-
-    server_ctx_t *ctx = (server_ctx_t *)(intptr_t)handle;
-    if (!ctx || !ctx->raop) return;
-
-    /* 실험(Sidecar): 연결 유지 + 비디오 RTP 세션만 중지 — 송신기 재-SETUP 유도 */
-    raop_reconfigure_video(ctx->raop);
-    LOGI("Video RTP session stopped for renegotiation");
-}
-
 /* Returns a HashMap<String, String> of TXT records */
 static jobject _build_txt_map(JNIEnv *env, dnssd_t *dnssd, int is_raop) {
     jclass mapClass = env->FindClass("java/util/HashMap");

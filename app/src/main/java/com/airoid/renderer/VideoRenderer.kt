@@ -44,10 +44,15 @@ class VideoRenderer {
     private var _ptsBaseUs = Long.MIN_VALUE
     private var _wallBaseNs = 0L
 
-    fun setResolution(w: Int, h: Int) {
+    fun setResolution(w: Int, h: Int) = synchronized(lock) {
+        if (w == videoWidth && h == videoHeight) return@synchronized
         videoWidth = w
         videoHeight = h
         pipeline.setVideoSize(w, h)
+        // ScreenRotate: 방향/해상도 변경 시 송신기가 새 Codec Data(SPS/PPS)를 보낸다.
+        // 실행 중 코덱은 기존 포맷으로 고정되어 있으므로 재시작해야 새 크기로 디코딩된다.
+        // (TCP/RTSP/페어링은 유지 — 다음 키프레임에서 새 포맷으로 재시작)
+        if (codec != null) stopCodec()
     }
 
     // doesn't restart codec; decoder renders into pipeline's own persistent surface
