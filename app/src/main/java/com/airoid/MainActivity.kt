@@ -102,11 +102,11 @@ fun AiroidApp(service: AirPlayService?) {
     val transition = remember { Animatable(0f) }
     LaunchedEffect(mirrored, firstFrameShown) {
         if (mirrored && firstFrameShown) {
-            // 첫 프레임이 화면에 표시된 뒤 영상이 자리 잡을 시간을 주고 애니메이션 시작
+            // 첫 프레임이 화면에 표시된 뒤 영상이 자리 잡을 시간을 주고 전환 시작
             delay(250)
-            transition.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
+            transition.animateTo(1f, tween(1000, easing = FastOutSlowInEasing))
         } else if (!mirrored && transition.value > 0f) {
-            transition.animateTo(0f, tween(700, easing = FastOutSlowInEasing))
+            transition.animateTo(0f, tween(1000, easing = FastOutSlowInEasing))
         }
     }
 
@@ -138,9 +138,10 @@ fun AiroidApp(service: AirPlayService?) {
                     Modifier
                         .fillMaxSize()
                         .graphicsLayer {
-                            // 교체 페이드: 영상은 transition과 함께 0→1(연결)/1→0(종료)로
-                            // 페이드되어, 스탠바이가 사라지는 순간 "띡" 하고 튀지 않는다.
-                            alpha = t
+                            // 2단계: 먼저 영상이 페이드 인(검정이 걷히며)되고,
+                            // 그 뒤에 박스가 커진다. 스탠바이가 사라지는 순간 "띡" 튀지 않는다.
+                            val reveal = (t / 0.4f).coerceIn(0f, 1f)
+                            alpha = reveal
                             if (mirrored) {
                                 // 연결: "흐림 → 또렷" — 살짝 확대된 상태에서 원래 크기로
                                 val focusScale = 1f + 0.04f * (1f - t)

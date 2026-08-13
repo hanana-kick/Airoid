@@ -98,12 +98,15 @@ fun StandbyScreen(
     // 가로에서는 높이 제약(내용높이 × 비율)이 폭을 키워 박스가 더 커 보인다.
     val contentVerticalPadding = 64.dp
 
-    // 미러링 전환(transition 0→1): 박스 크기가 최소 크기 ↔ 화면 1.1배 사이를 보간하며
-    // 확장/축소된다(레이아웃 크기 애니메이션 — 외곽선이 래스터 보간 없이 또렷하다).
-    // 배경(검정)과 내용(아이콘+코드)은 페이드아웃/인된다.
+    // 미러링 전환 2단계:
+    // reveal(0→0.4): 검정 배경이 페이드아웃되며 영상이 먼저 들어온다 (박스는 그대로).
+    // growth(0.4→1): 그 다음에 박스가 최소 ↔ 화면 1.1배 사이로 커지고/줄어들며,
+    // 내용(아이콘+코드)이 함께 스케일 + 페이드된다.
+    val reveal = (transition / 0.4f).coerceIn(0f, 1f)
+    val growth = ((transition - 0.4f) / 0.6f).coerceIn(0f, 1f)
     var boxWidthPx by remember { mutableStateOf(0) }
-    val boxAlpha = 1f - transition
-    val contentAlpha = 1f - transition * transition // 내용은 배경보다 먼저 사라진다
+    val boxAlpha = 1f - reveal
+    val contentAlpha = 1f - growth * growth // 내용은 배경보다 먼저 사라진다
 
     Box(Modifier.fillMaxSize()) {
         // 검정 배경: 전환 시 페이드아웃되어 미러 영상이 드러난다
@@ -117,7 +120,7 @@ fun StandbyScreen(
         // 화면 밖으로 나가거나 돌아온다. 내부 검정은 뒤의 배경이 비쳐 보인다.
         DeviceAspectBox(
             aspect = screenAspect,
-            transition = transition,
+            growth = growth,
             modifier = Modifier
                 .align(Alignment.Center)
                 .onSizeChanged {
@@ -187,7 +190,7 @@ private fun CodeBox(code: String, modifier: Modifier = Modifier) {
 /**
  * 기기 화면 비율을 유지하는 박스. 크기는 "내용이 들어가는 최소 크기" —
  * 내용(아이콘+타이틀+코드, 패딩 포함)보다 작아지지 않으면서 비율을 지킨다.
- * transition(0..1): 최소 크기 ↔ 화면 1.1배 사이를 크기 자체로 보간한다.
+ * growth(0..1): 최소 크기 ↔ 화면 1.1배 사이를 크기 자체로 보간한다.
  * 크기 레이아웃으로 애니메이션하므로(래스터 스케일 아님) 외곽선이 항상 또렷하고,
  * 1.1배로 커지면 외곽선이 화면 밖으로 나간다.
  * 내부 내용(placeable)은 박스와 같은 비율(현재폭/최소폭)로 함께 커지고 줄어든다.
@@ -195,7 +198,7 @@ private fun CodeBox(code: String, modifier: Modifier = Modifier) {
 @Composable
 private fun DeviceAspectBox(
     aspect: Float,
-    transition: Float,
+    growth: Float,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -210,7 +213,7 @@ private fun DeviceAspectBox(
         ).coerceAtMost(constraints.maxWidth)
         // 최대 크기: 화면의 1.1배 — 외곽선이 화면 밖으로 나간다.
         val maxW = (constraints.maxWidth * 1.1f).roundToInt()
-        val width = (minW + (maxW - minW) * transition).roundToInt()
+        val width = (minW + (maxW - minW) * growth).roundToInt()
         val height = (width / aspect).roundToInt()
         // 내용도 박스와 같은 비율로 커지고 줄어든다 (박스 확대 비율 = 현재폭/최소폭)
         val contentScale = if (minW > 0) width.toFloat() / minW else 1f
