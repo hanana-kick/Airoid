@@ -71,6 +71,10 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     private val _videoResolution = MutableStateFlow("")
     val videoResolution = _videoResolution.asStateFlow()
 
+    /** 현재 연결 대기 세션의 페어링 코드. 서버 시작 시 새로 생성된다. */
+    private val _pairingCode = MutableStateFlow("")
+    val pairingCode = _pairingCode.asStateFlow()
+
     var logCallback: ((String) -> Unit)? = null
 
     private fun log(msg: String) {
@@ -101,7 +105,9 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_START_SERVER) {
             promoteToForeground()
-            startServer(PairingCode.deviceName(this))
+            // 연결 대기마다 새 코드: 대기 화면 표시와 AirPlay 기기명이 함께 갱신된다
+            _pairingCode.value = PairingCode.random()
+            startServer(PairingCode.deviceName(_pairingCode.value))
             if (_serverState.value != ServerState.RUNNING) stopSelf(startId)
         }
         return START_NOT_STICKY

@@ -41,7 +41,6 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -51,15 +50,14 @@ import androidx.core.view.WindowInsetsControllerCompat
 
 /**
  * 미러링 대기 화면. 검정 배경을 사용한다.
- * Airoid 아래에 AirPlay 기기 이름과 같은 페어링 코드를 표시한다:
+ * Airoid 아래에 현재 세션의 페어링 코드를 표시한다:
  * 코드 필(primaryContainer)에 SF "airplay.video" 아이콘과 코드가 함께 들어간다.
  * 로딩 스피너/대기 텍스트는 표시하지 않는다. 연결이 시작되면(connecting) 필 아래에 "연결 중…"이 나타난다.
+ * 코드는 서버가 연결 대기를 만들 때마다 새로 생성되어 전달된다(영속화하지 않음).
  */
 @Composable
-fun StandbyScreen(connecting: Boolean) {
+fun StandbyScreen(connecting: Boolean, code: String) {
     val scheme = MaterialTheme.colorScheme
-    val context = LocalContext.current.applicationContext
-    val code = remember { PairingCode.get(context) }
 
     Box(
         Modifier

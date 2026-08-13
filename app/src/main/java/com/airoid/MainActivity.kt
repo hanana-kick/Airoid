@@ -78,6 +78,7 @@ fun AiroidApp(service: AirPlayService?) {
     val mirroring = service?.mirroringActive?.collectAsState()?.value ?: false
     val connectionCount = service?.connectionCount?.collectAsState()?.value ?: 0
     val connecting = connectionCount > 0 && !mirroring
+    val pairingCode = service?.pairingCode?.collectAsState()?.value ?: ""
     val keepScreenOn = remember {
         context.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
             .getBoolean(Prefs.KEEP_SCREEN_ON, Prefs.DEF_KEEP_SCREEN_ON)
@@ -98,7 +99,7 @@ fun AiroidApp(service: AirPlayService?) {
             if (mirroring && service != null) {
                 MirrorView(service)
             } else {
-                StandbyScreen(connecting = connecting)
+                StandbyScreen(connecting = connecting, code = pairingCode)
             }
         }
     }

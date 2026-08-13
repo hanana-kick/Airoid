@@ -1,14 +1,13 @@
 package com.airoid
 
-import android.content.Context
 import java.util.Locale
-import kotlin.random.Random
 
 /**
- * 대기 화면에 표시되는 페어링용 코드(유명 문학 작품 제목, 2~6자).
+ * 페어링용 코드(유명 문학 작품 제목, 2~6자).
  * 기기 언어에 맞는 목록(한국어/영어/일본어/중국어)에서 뽑는다.
- * 최초 접근 시 한 번 생성되어 SharedPreferences에 저장되며, 이후 재실행해도 같은 코드를 유지한다.
+ * 코드는 영속화하지 않고, 연결 대기를 만들 때마다(서버 시작 시) 새로 생성한다.
  * AirPlay 기기 이름 "Airoid [코드]"와 대기 화면 표시에 함께 쓰인다.
+ * 기기 식별(영속 MAC/페어링 인증서)은 별개로 유지되므로 이름이 바뀌어도 동일 기기로 인식된다.
  */
 object PairingCode {
 
@@ -62,17 +61,9 @@ object PairingCode {
         else -> KOREAN
     }
 
-    /** 저장된 코드를 반환하고, 없으면 현재 언어 목록에서 새로 생성해 저장한다. */
-    fun get(context: Context): String {
-        val words = listFor(Locale.getDefault())
-        val prefs = context.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
-        val idx = prefs.getInt(Prefs.PAIRING_CODE_INDEX, -1)
-        if (idx in words.indices) return words[idx]
-        val fresh = Random.nextInt(words.size)
-        prefs.edit().putInt(Prefs.PAIRING_CODE_INDEX, fresh).apply()
-        return words[fresh]
-    }
+    /** 연결 대기마다 새 코드를 뽑는다. */
+    fun random(): String = listFor(Locale.getDefault()).random()
 
     /** AirPlay에 노출되는 기기 이름: "Airoid [코드]". */
-    fun deviceName(context: Context): String = "Airoid ${get(context)}"
+    fun deviceName(code: String): String = "Airoid $code"
 }
