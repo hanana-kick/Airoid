@@ -3,11 +3,11 @@ package com.airoid
 import android.app.Activity
 import android.view.WindowInsets as AndroidWindowInsets
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -31,6 +32,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,12 +43,16 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 /**
  * 미러링 대기 화면. 검정 배경을 사용한다.
@@ -159,7 +165,9 @@ private val MirrorIcon: ImageVector = ImageVector.Builder(
 
 /**
  * 미러링 영상 위에 올라가는 공용 레이어.
- * 미러링 중 위로 스와이프하면 "미러링 종료" 패널이 열린다.
+ * 시트는 항상 컴포즈되어 있고, fraction(0=숨김, 1=표시)에 따라 아래로 이동한다.
+ * 위로 스와이프하면 손가락을 1:1로 따라 올라오고, 놓으면 스프링으로 settle된다.
+ * 스크림 탭이나 아래로 스와이프(임계값 초과)로 닫힌다.
  * 패널은 별도 창(popup)이 아니라 같은 창 안에 그린다 — 팝업 창이 열릴 때
  * 시스템 표시줄이 나타나는 것을 막기 위함이다.
  */
@@ -169,102 +177,103 @@ fun DisplayOptionsLayer(
     onDisconnectMirroring: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    var showOptions by remember { mutableStateOf(false) }
+    val scheme = MaterialTheme.colorScheme
+    val scope = rememberCoroutineScope()
+    val fraction = remember { Animatable(0f) }
+    var sheetHeightPx by remember { mutableStateOf(0) }
 
     Box(Modifier.fillMaxSize()) {
         content()
 
         if (mirroring) {
-            // 제스처 레이어: 위로 스와이프 → 미러링 종료 패널 열기
+            // 상호작용 레이어: 스크림 + 탭 닫기 + 전체 스와이프로 열기/추적
             Box(
                 Modifier
                     .fillMaxSize()
-                    .pointerInput(showOptions) {
-                        var total = 0f
-                        detectDragGestures { _, amount ->
-                            total += amount.y
-                            if (!showOptions && total <= -120f) {
-                                showOptions = true
-                            }
-                        }
+                    .background(Color.Black.copy(alpha = 0.5f * fraction.value))
+                    .pointerInput(Unit) {
+                        detectTapGestures { scope.launch { fraction.animateTo(0f) } }
                     }
-            )
-        }
-
-        if (showOptions && mirroring) {
-            OptionsOverlay(
-                onDisconnectMirroring = onDisconnectMirroring,
-                onDismiss = { showOptions = false },
-            )
-        }
-    }
-}
-
-/**
- * 미러링 종료 패널(인앱 오버레이). 스크림 탭이나 아래로 스와이프로 닫힌다.
- */
-@Composable
-private fun OptionsOverlay(
-    onDisconnectMirroring: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val scheme = MaterialTheme.colorScheme
-    Box(Modifier.fillMaxSize()) {
-        // 스크림: 탭하면 닫기
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.5f))
-                .pointerInput(Unit) { detectTapGestures { onDismiss() } }
-        )
-
-        Surface(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .widthIn(max = 640.dp)
-                .navigationBarsPadding()
-                .pointerInput(onDismiss) {
-                    var total = 0f
-                    detectVerticalDragGestures { _, amount ->
-                        total += amount
-                        if (total >= 96f) onDismiss()
-                    }
-                },
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            color = scheme.surfaceContainerLow,
-        ) {
-            Column(
-                Modifier
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 24.dp)
-            ) {
-                // 드래그 핸들
-                Box(
-                    Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(top = 12.dp, bottom = 8.dp)
-                        .size(width = 32.dp, height = 4.dp)
-                        .background(
-                            color = scheme.onSurfaceVariant.copy(alpha = 0.4f),
-                            shape = RoundedCornerShape(2.dp)
+                    .pointerInput(Unit) {
+                        detectVerticalDragGestures(
+                            onVerticalDrag = { _, dragAmount ->
+                                // 위로 드래그(음수) → fraction 증가 (시트가 손을 따라 올라옴)
+                                val delta = -dragAmount / sheetHeightPx.coerceAtLeast(1).toFloat()
+                                scope.launch {
+                                    fraction.snapTo((fraction.value + delta).coerceIn(0f, 1f))
+                                }
+                            },
+                            onDragEnd = {
+                                scope.launch {
+                                    fraction.animateTo(if (fraction.value > 0.35f) 1f else 0f)
+                                }
+                            },
+                            onDragCancel = {
+                                scope.launch { fraction.animateTo(0f) }
+                            },
                         )
-                )
-                Text(
-                    text = stringResource(R.string.options_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
-                Button(
-                    onClick = {
-                        onDisconnectMirroring()
-                        onDismiss()
+                    }
+            )
+
+            // 시트: fraction에 따라 아래로 이동 (드래그 추적 + 아래로 스와이프 닫기)
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .widthIn(max = 480.dp)
+                    .onSizeChanged { sheetHeightPx = it.height }
+                    .offset { IntOffset(0, ((1f - fraction.value) * sheetHeightPx).roundToInt()) }
+                    .navigationBarsPadding()
+                    .pointerInput(Unit) {
+                        detectVerticalDragGestures(
+                            onVerticalDrag = { _, dragAmount ->
+                                val delta = -dragAmount / sheetHeightPx.coerceAtLeast(1).toFloat()
+                                scope.launch {
+                                    fraction.snapTo((fraction.value + delta).coerceIn(0f, 1f))
+                                }
+                            },
+                            onDragEnd = {
+                                scope.launch {
+                                    fraction.animateTo(if (fraction.value > 0.35f) 1f else 0f)
+                                }
+                            },
+                            onDragCancel = {
+                                scope.launch { fraction.animateTo(1f) }
+                            },
+                        )
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                color = scheme.surfaceContainerLow,
+            ) {
+                Column(
+                    Modifier
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 24.dp)
                 ) {
-                    Text(stringResource(R.string.option_end_mirroring))
+                    // 드래그 핸들
+                    Box(
+                        Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(top = 12.dp, bottom = 8.dp)
+                            .size(width = 32.dp, height = 4.dp)
+                            .background(
+                                color = scheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                shape = RoundedCornerShape(2.dp)
+                            )
+                    )
+                    Text(
+                        text = stringResource(R.string.options_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                    Button(
+                        onClick = onDisconnectMirroring,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                    ) {
+                        Text(stringResource(R.string.option_end_mirroring))
+                    }
                 }
             }
         }
