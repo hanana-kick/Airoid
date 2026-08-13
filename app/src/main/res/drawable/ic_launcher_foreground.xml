@@ -1,23 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  안드로이드 머리(초록) 안에 AirPlay(화면 미러링) 아이콘을 넣은 어댑티브 아이콘 포그라운드.
+  전체가 벡터라 마스크/크기 변화(다이나믹 아이콘)에 대응하며, 콘텐츠는 안전 영역(중앙 66dp) 안에 배치된다.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- AirPlay-style glyph: a screen with a triangle "casting" into it -->
-    <group
-        android:scaleX="0.55"
-        android:scaleY="0.55"
-        android:translateX="24"
-        android:translateY="24">
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M30,24 L78,24 L78,64 L46,64 L46,74 L62,74 L62,84 L34,84 L34,74 L30,74 Z" />
-        <path
-            android:fillColor="#1B2A41"
-            android:pathData="M30,30 L30,58 L78,58 L78,30 Z" />
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M54,44 L38,58 L70,58 Z" />
-    </group>
+
+    <!-- 왼쪽 안테나 -->
+    <path
+        android:fillColor="#3DDC84"
+        android:pathData="M38,24 h4 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-4 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z" />
+    <!-- 오른쪽 안테나 -->
+    <path
+        android:fillColor="#3DDC84"
+        android:pathData="M66,24 h4 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-4 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z" />
+    <!-- 안드로이드 머리(돔) -->
+    <path
+        android:fillColor="#3DDC84"
+        android:pathData="M24,84 L24,52 A30,30 0 0 1 84,52 L84,84 Z" />
+    <!-- 왼쪽 눈 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M46,46 h4 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-4 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z" />
+    <!-- 오른쪽 눈 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M58,46 h4 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-4 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z" />
+    <!-- AirPlay TV 외곽선 (evenOdd로 내부 구멍) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M44,60 h20 a4,4 0 0 1 4,4 v10 a4,4 0 0 1 -4,4 h-20 a4,4 0 0 1 -4,-4 v-10 a4,4 0 0 1 4,-4 z M45,63 h18 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-18 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z" />
+    <!-- AirPlay 삼각형 (위를 향함) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,78 L60,83 L48,83 Z" />
 </vector>
