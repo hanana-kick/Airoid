@@ -97,17 +97,26 @@ fun StandbyScreen(
     // 가로에서는 높이 제약(내용높이 × 비율)이 폭을 키워 박스가 더 커 보인다.
     val contentVerticalPadding = 64.dp
 
-    // 미러링 전환 2단계:
-    // reveal(0→0.4): 검정 배경이 페이드아웃되며 영상이 먼저 들어온다 (박스는 그대로).
-    // growth(0.4→1): 그 다음에 박스가 최소 ↔ 화면 1.1배 사이로 커지고/줄어들며,
-    // 내용(아이콘+코드)이 함께 스케일 + 페이드된다.
-    val reveal = (transition / 0.4f).coerceIn(0f, 1f)
-    val growth = ((transition - 0.4f) / 0.6f).coerceIn(0f, 1f)
+    // 미러링 전환: 박스가 커지기 시작하는 동시에 영상이 페이드 인된다.
+    // reveal: 검정 배경이 걷히며 영상이 나타남 (절반 시점에 완전히 들어옴)
+    // growth: 박스가 전체 구간에 걸쳐 성장 — 영상은 "커지면서" 함께 들어온다
+    val reveal = (transition / 0.5f).coerceIn(0f, 1f)
+    val growth = transition
+    val boxAlpha = 1f - reveal
     val contentAlpha = 1f - growth * growth // 내용은 배경보다 먼저 사라진다
 
     Box(Modifier.fillMaxSize()) {
+        // 검정 배경: reveal 구간에서 페이드아웃되어 미러 영상이 드러난다.
+        // (SurfaceView는 별도 오버레이 레이어와 합성이 불안정해, 스탠바이의
+        //  검정 배경 자체가 페이드를 담당한다.)
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .graphicsLayer { alpha = boxAlpha }
+        )
         // 박스(외곽선만): 불투명·또렷하게 유지한 채 크기가 변하며(최소 ↔ 화면 1.1배)
-        // 화면 밖으로 나가거나 돌아온다. 내부 검정은 뒤의 검정 배경(창/오버레이)이 비친다.
+        // 화면 밖으로 나가거나 돌아온다. 내부 검정은 뒤의 검정 배경이 비친다.
         DeviceAspectBox(
             aspect = screenAspect,
             growth = growth,

@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Bundle
 import android.os.IBinder
+import android.util.Log
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import androidx.activity.ComponentActivity
@@ -128,22 +129,13 @@ fun AiroidApp(service: AirPlayService?) {
             onDisconnectMirroring = { service?.disconnectClients() },
         ) {
             // 미러 영상(하단): 연결/표시 중 + 종료 애니메이션 동안 유지된다.
-            // SurfaceView는 변환(graphicsLayer) 레이어 안에서 서피스 합성이 깨지므로
-            // 영상은 항상 plain full-screen으로 두고, 페이드는 위 검정 오버레이가 담당한다.
+            // SurfaceView는 변환/오버레이 레이어와의 합성이 불안정해 항상 plain full-screen으로 둔다.
+            // 페이드는 스탠바이의 검정 배경(alpha 1-reveal)이 담당한다.
             val showVideo = (mirrored || transition.value > 0f) && service != null
             if (showVideo) {
-                val t = transition.value
-                val reveal = (t / 0.4f).coerceIn(0f, 1f)
                 Box(Modifier.fillMaxSize()) {
                     MirrorView(service)
                 }
-                // 영상 페이드 인/아웃용 검정 오버레이 (일반 레이어라 alpha가 동작한다)
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(Color.Black)
-                        .graphicsLayer { alpha = 1f - reveal }
-                )
             }
             // 스탠바이(상단): 대기 중 상시, 전환 중에는 페이드아웃/인 + 박스 확장/축소
             if (!mirrored || transition.value < 1f) {
@@ -161,15 +153,19 @@ fun AiroidApp(service: AirPlayService?) {
  * 디코딩된 프레임을 여기로 그리게 한다.
  * 크기 보고는 루트 Box가 담당한다(회전/리사이즈 공용).
  */
+private const val MIRROR_TAG = "MirrorView"
+
 @Composable
 private fun MirrorView(service: AirPlayService) {
     val callback = remember(service) {
         object : SurfaceHolder.Callback {
             override fun surfaceCreated(holder: SurfaceHolder) {
+                Log.i(MIRROR_TAG, "Surface created: ${holder.surface}")
                 service.setVideoSurface(holder.surface)
             }
             override fun surfaceChanged(holder: SurfaceHolder, format: Int, w: Int, h: Int) {}
             override fun surfaceDestroyed(holder: SurfaceHolder) {
+                Log.i(MIRROR_TAG, "Surface destroyed")
                 service.clearVideoSurface(holder.surface)
             }
         }

@@ -132,7 +132,10 @@ class VideoPipeline {
             EGL14.eglDestroySurface(eglDisplay, window)
             window = EGL14.EGL_NO_SURFACE
         }
-        if (surface == null || !surface.isValid) return
+        if (surface == null || !surface.isValid) {
+            Log.i(TAG, "bindDisplay: no surface")
+            return
+        }
         window = EGL14.eglCreateWindowSurface(eglDisplay, eglConfig, surface, intArrayOf(EGL14.EGL_NONE), 0)
         if (window == EGL14.EGL_NO_SURFACE) {
             Log.w(TAG, "eglCreateWindowSurface failed: ${EGL14.eglGetError()}")
@@ -141,6 +144,7 @@ class VideoPipeline {
         EGL14.eglMakeCurrent(eglDisplay, window, window, eglContext)
         winW = _query(EGL14.EGL_WIDTH)
         winH = _query(EGL14.EGL_HEIGHT)
+        Log.i(TAG, "Display bound: ${winW}x${winH}")
         // an idle source sends no new frames, so repaint last one or new surface stays black
         if (hasFrame) _render()
     }
@@ -149,6 +153,7 @@ class VideoPipeline {
         val st = surfaceTexture ?: return
         if (window == EGL14.EGL_NO_SURFACE) {
             // no display: keep consuming so decoder doesn't stall
+            Log.w(TAG, "Frame consumed but NO display window — video not shown")
             EGL14.eglMakeCurrent(eglDisplay, pbuffer, pbuffer, eglContext)
             st.updateTexImage()
             hasFrame = true
