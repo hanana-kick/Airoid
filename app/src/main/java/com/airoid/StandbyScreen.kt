@@ -7,11 +7,7 @@ import android.os.Build
 import android.view.RoundedCorner
 import android.view.WindowInsets as AndroidWindowInsets
 import android.view.WindowManager
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -76,12 +72,13 @@ import kotlinx.coroutines.launch
  * 미러링 대기 화면. 검정 배경을 사용한다.
  * 기기 화면 비율의 둥근 박스(기기 코너 반경, 테마색 외곽선, 검정 내부)가
  * "Airoid" 타이틀과 페어링 코드(코드 필: SF "airplay.video" 아이콘 + 코드)를 함께 감싼다.
- * 박스는 비율을 유지하되 내용(타이틀+코드+상태)보다 작아지지 않는 최소 크기를 보장한다.
- * 로딩 스피너/대기 텍스트는 표시하지 않는다. 연결이 시작되면(connecting) 박스 안에 "연결 중…"이 나타난다.
+ * 박스는 비율을 유지하되 내용(타이틀+코드)보다 작아지지 않는 최소 크기를 보장한다.
  * 코드는 서버가 연결 대기를 만들 때마다 새로 생성되어 전달된다(영속화하지 않음).
+ * transition(0→1): 미러링 연결 전환 애니메이션 — 배경이 페이드아웃되고
+ * 박스가 화면 비율을 유지한 채 전체 화면으로 확장되며, 내용(코드/아이콘)이 먼저 사라진다.
  */
 @Composable
-fun StandbyScreen(connecting: Boolean, code: String, transition: Float = 0f) {
+fun StandbyScreen(code: String, transition: Float = 0f) {
     val scheme = MaterialTheme.colorScheme
     val config = LocalConfiguration.current
     val density = LocalDensity.current
@@ -154,20 +151,6 @@ fun StandbyScreen(connecting: Boolean, code: String, transition: Float = 0f) {
                             code = code,
                             modifier = Modifier.padding(start = 10.dp),
                         )
-                    }
-                    AnimatedContent(
-                        targetState = connecting,
-                        transitionSpec = { fadeIn() togetherWith fadeOut() },
-                        label = "status",
-                    ) { isConnecting ->
-                        if (isConnecting) {
-                            Text(
-                                text = stringResource(R.string.standby_connecting),
-                                color = scheme.onBackground,
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(top = 24.dp)
-                            )
-                        }
                     }
                 }
             }

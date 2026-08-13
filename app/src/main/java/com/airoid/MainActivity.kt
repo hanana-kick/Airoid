@@ -81,8 +81,7 @@ class MainActivity : ComponentActivity() {
 fun AiroidApp(service: AirPlayService?) {
     val context = LocalContext.current.applicationContext
     val mirroring = service?.mirroringActive?.collectAsState()?.value ?: false
-    val connectionCount = service?.connectionCount?.collectAsState()?.value ?: 0
-    val connecting = connectionCount > 0 && !mirroring
+    val firstFrameShown = service?.firstFrameShown?.collectAsState()?.value ?: false
     val pairingCode = service?.pairingCode?.collectAsState()?.value ?: ""
     val keepScreenOn = remember {
         context.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
@@ -96,14 +95,14 @@ fun AiroidApp(service: AirPlayService?) {
     // 항상 전체 화면
     FullScreenEffect()
 
-    // 미러링 전환 애니메이션: 연결 시 스탠바이가 페이드아웃되고
-    // 박스가 화면 비율을 유지하며 전체 화면으로 확장되어 미러 영상만 남는다.
+    // 미러링 전환 애니메이션: 첫 프레임이 실제 화면에 표시된 뒤에만 재생된다.
+    // 연결 준비 단계(영상이 아직 안 들어온 상태)에서는 스탠바이를 그대로 유지한다.
     val mirrored = mirroring && service != null
     val transition = remember { Animatable(0f) }
-    LaunchedEffect(mirrored) {
-        if (mirrored) {
+    LaunchedEffect(mirrored, firstFrameShown) {
+        if (mirrored && firstFrameShown) {
             transition.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
-        } else {
+        } else if (!mirrored) {
             transition.snapTo(0f)
         }
     }
@@ -142,7 +141,6 @@ fun AiroidApp(service: AirPlayService?) {
             // 스탠바이(상단): 대기 중 상시, 전환 중에는 페이드아웃 + 박스 확장
             if (!mirrored || transition.value < 1f) {
                 StandbyScreen(
-                    connecting = connecting,
                     code = pairingCode,
                     transition = transition.value,
                 )

@@ -9,7 +9,9 @@ import android.view.Surface
 class VideoRenderer {
 
     private val lock = Object()
-    private val pipeline = VideoPipeline()
+    private val pipeline = VideoPipeline().apply {
+        onFirstFramePresented = { this@VideoRenderer.onFirstFramePresented?.invoke() }
+    }
     private var codec: MediaCodec? = null
     private var displaySurface: Surface? = null
     private var currentH265 = false
@@ -24,6 +26,9 @@ class VideoRenderer {
     @Volatile var codecName = ""; private set
     @Volatile var droppedFrames = 0L; private set
     @Volatile var framePacingJitterUs = 0L; private set
+
+    /** 첫 프레임이 화면에 실제 표시되었을 때 호출 (전환 애니메이션 게이트). */
+    @Volatile var onFirstFramePresented: (() -> Unit)? = null
 
     var enforceSdr = true
     var keyAllowFrameDrop = true

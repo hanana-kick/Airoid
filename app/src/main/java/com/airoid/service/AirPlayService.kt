@@ -62,6 +62,10 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     private val _mirroringActive = MutableStateFlow(false)
     val mirroringActive = _mirroringActive.asStateFlow()
 
+    /** 미러 영상의 첫 프레임이 실제 화면에 표시되었는지. 전환 애니메이션 게이트로 사용. */
+    private val _firstFrameShown = MutableStateFlow(false)
+    val firstFrameShown = _firstFrameShown.asStateFlow()
+
     private val _audioOnly = MutableStateFlow(false)
     val audioOnly = _audioOnly.asStateFlow()
 
@@ -103,6 +107,8 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
         super.onCreate()
         createNotificationChannel()
         log("Service created")
+        // 첫 프레임이 실제 화면에 표시되면 전환 애니메이션 게이트를 연다.
+        videoRenderer.onFirstFramePresented = { _firstFrameShown.value = true }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -193,6 +199,7 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
         videoRenderer.release()
         _audioOnly.value = false
         _mirroringActive.value = false
+        _firstFrameShown.value = false
         _serverState.value = ServerState.STOPPED
         _connectionCount.value = 0
         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -308,6 +315,7 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
             audioRenderer.stop()
             _audioOnly.value = false
             _mirroringActive.value = false
+            _firstFrameShown.value = false
         }
         log("Client disconnected (${_connectionCount.value})")
     }

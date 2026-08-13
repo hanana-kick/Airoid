@@ -49,9 +49,14 @@ class VideoPipeline {
     @Volatile private var videoW = 0
     @Volatile private var videoH = 0
 
+    /** 첫 번째 프레임이 실제 화면(EGL window)에 표시되었을 때 한 번 호출된다. */
+    @Volatile var onFirstFramePresented: (() -> Unit)? = null
+    private var presentedFrames = 0L
+
     fun start() = synchronized(lock) {
         if (running) return@synchronized
         running = true
+        presentedFrames = 0
         thread = Thread({ _loop() }, "VideoPipeline").also { it.start() }
         while (inputSurface == null && running) lock.wait()
     }
@@ -171,6 +176,8 @@ class VideoPipeline {
         GLES20.glDisableVertexAttribArray(aPos)
         GLES20.glDisableVertexAttribArray(aTex)
         EGL14.eglSwapBuffers(eglDisplay, window)
+        presentedFrames++
+        if (presentedFrames == 1L) onFirstFramePresented?.invoke()
     }
 
     private fun _query(what: Int): Int {
