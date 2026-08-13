@@ -190,6 +190,7 @@ private fun CodeBox(code: String, modifier: Modifier = Modifier) {
  * transition(0..1): 최소 크기 ↔ 화면 1.1배 사이를 크기 자체로 보간한다.
  * 크기 레이아웃으로 애니메이션하므로(래스터 스케일 아님) 외곽선이 항상 또렷하고,
  * 1.1배로 커지면 외곽선이 화면 밖으로 나간다.
+ * 내부 내용(placeable)은 박스와 같은 비율(현재폭/최소폭)로 함께 커지고 줄어든다.
  */
 @Composable
 private fun DeviceAspectBox(
@@ -211,11 +212,16 @@ private fun DeviceAspectBox(
         val maxW = (constraints.maxWidth * 1.1f).roundToInt()
         val width = (minW + (maxW - minW) * transition).roundToInt()
         val height = (width / aspect).roundToInt()
+        // 내용도 박스와 같은 비율로 커지고 줄어든다 (박스 확대 비율 = 현재폭/최소폭)
+        val contentScale = if (minW > 0) width.toFloat() / minW else 1f
         layout(width, height) {
-            placeable.place(
+            placeable.placeWithLayer(
                 x = (width - placeable.width) / 2,
                 y = (height - placeable.height) / 2,
-            )
+            ) {
+                scaleX = contentScale
+                scaleY = contentScale
+            }
         }
     }
 }
