@@ -215,64 +215,69 @@ fun DisplayOptionsLayer(
                     }
             )
 
-            // 시트: fraction에 따라 아래로 이동 (드래그 추적 + 아래로 스와이프 닫기)
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
+            // 시트 컨테이너: 가로를 채우되 내용(시트)은 폭 제한 + 중앙 정렬.
+            // Surface에 fillMaxWidth를 쓰지 않아 widthIn cap이 반드시 적용된다.
+            Box(
+                Modifier
                     .fillMaxWidth()
-                    .widthIn(max = 352.dp)
                     .onSizeChanged { sheetHeightPx = it.height }
                     .offset { IntOffset(0, ((1f - fraction.value) * sheetHeightPx).roundToInt()) }
-                    .navigationBarsPadding()
-                    .pointerInput(Unit) {
-                        detectVerticalDragGestures(
-                            onVerticalDrag = { _, dragAmount ->
-                                val delta = -dragAmount / sheetHeightPx.coerceAtLeast(1).toFloat()
-                                scope.launch {
-                                    fraction.snapTo((fraction.value + delta).coerceIn(0f, 1f))
-                                }
-                            },
-                            onDragEnd = {
-                                scope.launch {
-                                    fraction.animateTo(if (fraction.value > 0.35f) 1f else 0f)
-                                }
-                            },
-                            onDragCancel = {
-                                scope.launch { fraction.animateTo(1f) }
-                            },
-                        )
-                    },
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                color = scheme.surfaceContainerLow,
+                    .navigationBarsPadding(),
+                contentAlignment = Alignment.BottomCenter,
             ) {
-                Column(
-                    Modifier
-                        .padding(horizontal = 24.dp)
-                        .padding(bottom = 24.dp)
-                ) {
-                    // 드래그 핸들
-                    Box(
-                        Modifier
-                            .align(Alignment.CenterHorizontally)
-                            .padding(top = 12.dp, bottom = 8.dp)
-                            .size(width = 32.dp, height = 4.dp)
-                            .background(
-                                color = scheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                shape = RoundedCornerShape(2.dp)
+                Surface(
+                    modifier = Modifier
+                        .widthIn(max = 352.dp)
+                        .pointerInput(Unit) {
+                            detectVerticalDragGestures(
+                                onVerticalDrag = { _, dragAmount ->
+                                    val delta = -dragAmount / sheetHeightPx.coerceAtLeast(1).toFloat()
+                                    scope.launch {
+                                        fraction.snapTo((fraction.value + delta).coerceIn(0f, 1f))
+                                    }
+                                },
+                                onDragEnd = {
+                                    scope.launch {
+                                        fraction.animateTo(if (fraction.value > 0.35f) 1f else 0f)
+                                    }
+                                },
+                                onDragCancel = {
+                                    scope.launch { fraction.animateTo(1f) }
+                                },
                             )
-                    )
-                    Text(
-                        text = stringResource(R.string.options_title),
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
-                    Button(
-                        onClick = onDisconnectMirroring,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp),
+                        },
+                    shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                    color = scheme.surfaceContainerLow,
+                ) {
+                    Column(
+                        Modifier
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 24.dp)
                     ) {
-                        Text(stringResource(R.string.option_end_mirroring))
+                        // 드래그 핸들
+                        Box(
+                            Modifier
+                                .align(Alignment.CenterHorizontally)
+                                .padding(top = 12.dp, bottom = 8.dp)
+                                .size(width = 32.dp, height = 4.dp)
+                                .background(
+                                    color = scheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                    shape = RoundedCornerShape(2.dp)
+                                )
+                        )
+                        Text(
+                            text = stringResource(R.string.options_title),
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                        Button(
+                            onClick = onDisconnectMirroring,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
+                        ) {
+                            Text(stringResource(R.string.option_end_mirroring))
+                        }
                     }
                 }
             }
