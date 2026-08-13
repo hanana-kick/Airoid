@@ -8,6 +8,8 @@ object Prefs {
 
     const val SERVER_NAME = "server_name"; const val DEF_SERVER_NAME = "Android AirPlay"
     const val FALLBACK_MAC_ADDRESS = "fallback_mac_address"
+    const val PAIRING_CODE = "pairing_code"
+    const val PAIRING_CODE_LANG = "pairing_code_lang"
     const val SERVER_PORT = "server_port"; const val DEF_SERVER_PORT = 7000
     const val AUTO_START = "auto_start"; const val DEF_AUTO_START = true
     const val BOOT_AUTO_START = "boot_auto_start"; const val DEF_BOOT_AUTO_START = true

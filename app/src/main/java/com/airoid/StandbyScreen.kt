@@ -15,6 +15,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,16 +45,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -71,91 +72,79 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
 /**
- * 미러링 대기 화면. 검정 배경을 사용한다.
+ * 미러링 대기 화면(정적). 검정 배경을 사용한다.
  * 기기 화면 비율의 둥근 박스(기기 코너 반경, 테마색 외곽선, 검정 내부)가
  * "Airoid" 타이틀과 페어링 코드(코드 필: SF "airplay.video" 아이콘 + 코드)를 함께 감싼다.
  * 박스는 비율을 유지하되 내용(타이틀+코드)보다 작아지지 않는 최소 크기를 보장한다.
  * 코드는 서버가 연결 대기를 만들 때마다 새로 생성되어 전달된다(영속화하지 않음).
- * transition(0→1): 미러링 연결 전환 애니메이션 — 배경이 페이드아웃되고
- * 박스가 화면 비율을 유지한 채 전체 화면으로 확장되며, 내용(코드/아이콘)이 먼저 사라진다.
+ * 전환 애니메이션은 여기서 하지 않는다 — 진입/종료 시엔 이 화면이 언마운트되고,
+ * GL 렌더러가 영상+외곽선(링)을 한 트랜스폼으로 그린다 (싱크 불일치 원천 제거).
  */
 @Composable
-fun StandbyScreen(
-    code: String,
-    transition: Float = 0f,
-) {
+fun StandbyScreen(code: String, contentAlpha: Float = 1f, showBackground: Boolean = true) {
     val scheme = MaterialTheme.colorScheme
     val config = LocalConfiguration.current
     // 기기 화면 비율: 세로일 때 0.755 (1848:2448), 회전 시 자동 반영
     val screenAspect = config.screenWidthDp.toFloat() / config.screenHeightDp.toFloat()
     // 코너 radius는 "안쪽(검정 내부)" 기준으로 기기와 일치시킨다.
     // 테두리가 shape 안쪽에 그려지므로 shape radius = 기기 radius + 테두리 두께.
-    val borderWidth = 4.dp
-    val cornerRadius = deviceCornerRadiusDp() + borderWidth
+    val cornerRadius = deviceCornerRadiusDp() + BORDER_WIDTH_DP
     // 상하 패딩을 크게 유지한다(항상 64dp).
-    // 세로에서는 박스 폭이 내용 폭에 지배되어 크기가 그대로이고,
-    // 가로에서는 높이 제약(내용높이 × 비율)이 폭을 키워 박스가 더 커 보인다.
     val contentVerticalPadding = 64.dp
 
-    // 미러링 전환: 박스가 커지기 시작하는 동시에 영상이 페이드 인된다.
-    // reveal: 검정 배경이 걷히며 영상이 나타남 (절반 시점에 완전히 들어옴)
-    // growth: 박스가 전체 구간에 걸쳐 성장 — 영상은 "커지면서" 함께 들어온다
-    val reveal = (transition / 0.5f).coerceIn(0f, 1f)
-    val growth = transition
-    val boxAlpha = 1f - reveal
-    val contentAlpha = 1f - growth * growth // 내용은 배경보다 먼저 사라진다
-
     Box(Modifier.fillMaxSize()) {
-        // 검정 배경: reveal 구간에서 페이드아웃되어 미러 영상이 드러난다.
-        // (SurfaceView는 별도 오버레이 레이어와 합성이 불안정해, 스탠바이의
-        //  검정 배경 자체가 페이드를 담당한다.)
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(Color.Black)
-                .graphicsLayer { alpha = boxAlpha }
-        )
-        // 박스(외곽선만): 불투명·또렷하게 유지한 채 크기가 변하며(최소 ↔ 화면 1.1배)
-        // 화면 밖으로 나가거나 돌아온다. 내부 검정은 뒤의 검정 배경이 비친다.
+        // 검정 배경 — 전환 중에는 GL clear 검정이 배경을 담당하므로 생략된다
+        if (showBackground) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+            )
+        }
+        // 박스(외곽선) + 내용: 전환 중엔 contentAlpha로 아이콘/제목/코드가 함께 페이드.
+        // 박스 테두리는 t=0(대기/게이트 전)에서만 그린다 — 전환이 시작되면 같은
+        // 위치(0.48×창)의 GL 링이 이어받으므로 외곽선이 두 개로 겹쳐 보이지 않는다.
         DeviceAspectBox(
             aspect = screenAspect,
-            growth = growth,
-            modifier = Modifier
-                .align(Alignment.Center)
-                .border(borderWidth, scheme.primary, RoundedCornerShape(cornerRadius)),
+            growth = 0f,
+            modifier = Modifier.align(Alignment.Center).alpha(contentAlpha),
+            border = if (contentAlpha >= 1f) {
+                Modifier.border(BORDER_WIDTH_DP, scheme.primary, RoundedCornerShape(cornerRadius))
+            } else {
+                Modifier
+            },
         ) {
             Column(
                 Modifier
-                    .padding(horizontal = 28.dp, vertical = contentVerticalPadding)
-                    .graphicsLayer { alpha = contentAlpha },
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(horizontal = 28.dp, vertical = contentVerticalPadding),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // AirPlay 아이콘 (상단)
+                Icon(
+                    imageVector = MirrorIcon,
+                    contentDescription = null,
+                    tint = scheme.onBackground,
+                    modifier = Modifier.size(44.dp),
+                )
+                // "Airoid [코드]" — 코드는 코드박스 스타일로
+                Row(
+                    Modifier.padding(top = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    // AirPlay 아이콘 (상단)
-                    Icon(
-                        imageVector = MirrorIcon,
-                        contentDescription = null,
-                        tint = scheme.onBackground,
-                        modifier = Modifier.size(44.dp),
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        color = scheme.onBackground,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
                     )
-                    // "Airoid [코드]" — 코드는 코드박스 스타일로
-                    Row(
-                        Modifier.padding(top = 18.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.app_name),
-                            color = scheme.onBackground,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        CodeBox(
-                            code = code,
-                            modifier = Modifier.padding(start = 10.dp),
-                        )
-                    }
+                    CodeBox(
+                        code = code,
+                        modifier = Modifier.padding(start = 10.dp),
+                    )
                 }
             }
+        }
     }
 }
 
@@ -183,43 +172,38 @@ private fun CodeBox(code: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * 기기 화면 비율을 유지하는 박스. 크기는 "내용이 들어가는 최소 크기" —
- * 내용(아이콘+타이틀+코드, 패딩 포함)보다 작아지지 않으면서 비율을 지킨다.
- * growth(0..1): 최소 크기 ↔ 화면 1.1배 사이를 크기 자체로 보간한다.
- * 크기 레이아웃으로 애니메이션하므로(래스터 스케일 아님) 외곽선이 항상 또렷하고,
- * 1.1배로 커지면 외곽선이 화면 밖으로 나간다.
- * 내부 내용(placeable)은 박스와 같은 비율(현재폭/최소폭)로 함께 커지고 줄어든다.
+ * 기기 화면 비율을 유지하는 박스. growth(0..1): 최소 크기 ↔ 화면 BOX_MAX_FRACTION배 사이를
+ * 크기 자체로 보간한다. 크기 레이아웃으로 애니메이션하므로(래스터 스케일 아님)
+ * 외곽선이 항상 또렷하고, 최대 크기에서 외곽선이 화면 밖으로 나간다.
+ * 크기는 requiredSize로 부모 제약을 무시한다 — 부모(fillMaxSize)가 tight 제약이라
+ * size()는 1.0배에서 잘려 외곽선이 화면 끝에 멈추게 된다.
+ * 기준은 BoxWithConstraints.maxWidth(실측 창 폭) — 영상 GL 스케일(창 기준)과 일치시킨다.
+ * SubcomposeLayout/placeWithLayer(레이어)를 쓰지 않는다 — 같은 화면의
+ * SurfaceView 합성이 깨지지 않도록. 내용은 고정 크기로 중앙에 유지된다.
+ * BOX_MIN_FRACTION/BOX_MAX_FRACTION은 영상 전환 스케일(MainActivity)과 공유된다.
  */
 @Composable
 private fun DeviceAspectBox(
     aspect: Float,
     growth: Float,
     modifier: Modifier = Modifier,
+    border: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    SubcomposeLayout(modifier) { constraints ->
-        val placeable = subcompose("content", content)[0]
-            .measure(constraints.copy(minWidth = 0, minHeight = 0))
-        // 최소 크기: 내용 폭(너비)과, 비율상 높이를 맞추는 데 필요한 폭 중 큰 쪽.
-        // 높이 = 폭/aspect 이므로 높이가 내용보다 작아지지 않으려면 폭 >= 내용높이 * aspect.
-        val minW = maxOf(
-            placeable.width,
-            (placeable.height * aspect).roundToInt(),
-        ).coerceAtMost(constraints.maxWidth)
-        // 최대 크기: 화면의 1.1배 — 외곽선이 화면 밖으로 나간다.
-        val maxW = (constraints.maxWidth * 1.1f).roundToInt()
-        val width = (minW + (maxW - minW) * growth).roundToInt()
-        val height = (width / aspect).roundToInt()
-        // 내용도 박스와 같은 비율로 커지고 줄어든다 (박스 확대 비율 = 현재폭/최소폭)
-        val contentScale = if (minW > 0) width.toFloat() / minW else 1f
-        layout(width, height) {
-            placeable.placeWithLayer(
-                x = (width - placeable.width) / 2,
-                y = (height - placeable.height) / 2,
-            ) {
-                scaleX = contentScale
-                scaleY = contentScale
-            }
+    BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
+        // 최소 크기: 창 폭의 BOX_MIN_FRACTION배 (아이콘+타이틀+코드가 들어가는 기기 프레임 크기)
+        val minW = maxWidth * BOX_MIN_FRACTION
+        // 최대 크기: 창 폭의 BOX_MAX_FRACTION배 — 외곽선이 화면 밖으로 나간다.
+        val maxW = maxWidth * BOX_MAX_FRACTION
+        val width = minW + (maxW - minW) * growth
+        val height = width / aspect
+        Box(
+            Modifier
+                .requiredSize(width, height)
+                .then(border),
+            contentAlignment = Alignment.Center,
+        ) {
+            content()
         }
     }
 }
@@ -231,7 +215,7 @@ private fun DeviceAspectBox(
  * 3) 최종 폴백: 24.dp
  */
 @Composable
-private fun deviceCornerRadiusDp(): Dp {
+internal fun deviceCornerRadiusDp(): Dp {
     val context = LocalContext.current
     val density = LocalDensity.current
     var radiusPx = 0
@@ -249,6 +233,15 @@ private fun deviceCornerRadiusDp(): Dp {
     }
     return if (radiusPx > 0) with(density) { radiusPx.toDp() } else 24.dp
 }
+
+/** 전환 박스 최소 크기(화면 폭 대비 비율). 영상 전환 스케일(MainActivity)과 공유. */
+internal const val BOX_MIN_FRACTION = 0.48f
+
+/** 전환 박스 최대 크기(화면 폭 대비 비율): 1.1배 — 외곽선이 화면 밖으로 나간다. */
+internal const val BOX_MAX_FRACTION = 1.1f
+
+/** 기기 프레임 외곽선 두께 (스탠바이 박스 + GL 링 공용). */
+internal val BORDER_WIDTH_DP = 4.dp
 
 /**
  * 화면 미러링(에어플레이) 아이콘 — SF Symbol "airplay.video" 원본 경로 데이터

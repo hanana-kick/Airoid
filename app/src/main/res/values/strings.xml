@@ -2,9 +2,9 @@
 <resources>
     <string name="app_name">Airoid</string>
     <string name="tagline">AirPlay receiver — use this device as a secondary screen for your Mac</string>
-    <string name="option_end_mirroring">미러링 종료</string>
-    <string name="notification_channel">Airoid 수신기</string>
-    <string name="notification_title">Airoid 미러링 대기 중</string>
-    <string name="notification_active_title">Airoid 미러링 중</string>
-    <string name="notification_text">맥의 AirPlay 수신기로 동작 중</string>
+    <string name="option_end_mirroring">End mirroring</string>
+    <string name="notification_channel">Airoid receiver</string>
+    <string name="notification_title">Airoid waiting for mirroring</string>
+    <string name="notification_active_title">Airoid mirroring</string>
+    <string name="notification_text">Running as an AirPlay receiver for your Mac</string>
 </resources>

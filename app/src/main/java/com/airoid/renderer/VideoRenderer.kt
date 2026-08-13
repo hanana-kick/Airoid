@@ -15,6 +15,7 @@ class VideoRenderer {
     private var codec: MediaCodec? = null
     private var displaySurface: Surface? = null
     private var currentH265 = false
+    @Volatile private var firstFrameArrived = false
     private var videoWidth = 0
     private var videoHeight = 0
     private var firstFrameQueued = false
@@ -72,6 +73,27 @@ class VideoRenderer {
         pipeline.setDisplaySurface(null)
     }
 
+    /** 전환 애니메이션: 스케일(박스 크기 → 화면 밖) + 컨테이너 페이드(영상만). */
+    fun setVideoTransition(scale: Float, fade: Float) {
+        pipeline.setTransition(scale, fade)
+    }
+
+    /** 새 연결 세션 시작: 전환 게이트를 재무장하고, PTS 스케줄 베이스를 리셋한다
+     * (재연결 시 애니메이션 재생 보장 + 이전 세션의 PTS 기준으로 새 프레임이
+     * 미래로 스케줄되어 멈추는 것 방지). */
+    fun onSessionStart() {
+        synchronized(lock) {
+            _ptsBaseUs = Long.MIN_VALUE
+            _wallBaseNs = 0L
+        }
+        pipeline.resetGate()
+    }
+
+    /** 외곽선(링) 설정: 테마 색, 내각 radius(기기 radius), 테두리 두께 — GL에서 영상과 함께 그린다. */
+    fun setVideoBorder(colorArgb: Int, radiusPx: Float, widthPx: Float) {
+        pipeline.setVideoBorder(colorArgb, radiusPx, widthPx)
+    }
+
     private fun _updateStats(size: Int) {
         val now = System.currentTimeMillis()
         if (now - _lastStatReset >= 1000) {
@@ -99,6 +121,10 @@ class VideoRenderer {
 
     fun feedFrame(data: ByteArray, ntpTimeNs: Long, isH265: Boolean) {
         _updateStats(data.size)
+        if (!firstFrameArrived) {
+            firstFrameArrived = true
+            Log.i(TAG, "First frame arrived: ${data.size}B pts=${ntpTimeNs / 1000}us")
+        }
 
         synchronized(lock) {
             if (videoWidth == 0 || videoHeight == 0) return
@@ -219,6 +245,7 @@ class VideoRenderer {
     }
 
     private fun stopCodec() {
+        firstFrameArrived = false
         _frameIntervalIdx = 0
         _frameIntervalCount = 0
         _lastOutputFrameNs = 0L

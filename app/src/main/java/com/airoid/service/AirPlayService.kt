@@ -34,6 +34,7 @@ import com.airoid.renderer.AudioRenderer
 import com.airoid.renderer.VideoRenderer
 import java.net.NetworkInterface
 import java.security.SecureRandom
+import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -125,8 +126,19 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
 
     fun startServer() {
         if (_serverState.value == ServerState.RUNNING) return
-        // 연결 대기(서버 시작) 시에만 새 코드 생성 — 재실행 중 서버가 살아 있으면 코드 유지
-        val code = PairingCode.random()
+        // 페어링 코드: 영속화해서 앱을 껐다 켜도 유지 — 기기 이름("Airoid [코드]")이
+        // 바뀌지 않아 클라이언트가 다시 인식/재확인할 필요가 없다.
+        // 단, 앱 언어가 바뀌면 그 언어로 새로 생성해 갱신한다.
+        val appLocale = resources.configuration.locales[0] ?: Locale.getDefault()
+        val prefs = getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
+        var code = prefs.getString(Prefs.PAIRING_CODE, null)
+        if (code == null || prefs.getString(Prefs.PAIRING_CODE_LANG, null) != appLocale.language) {
+            code = PairingCode.random(appLocale)
+            prefs.edit()
+                .putString(Prefs.PAIRING_CODE, code)
+                .putString(Prefs.PAIRING_CODE_LANG, appLocale.language)
+                .apply()
+        }
         _pairingCode.value = code
         val effectiveName = PairingCode.deviceName(code)
 
@@ -149,7 +161,6 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
         }
         audioRenderer.attachEngine(nativeHandle)
 
-        val prefs = getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
         videoRenderer.benchmarkLog = prefs.getBoolean(Prefs.BENCHMARK_LOG, Prefs.DEF_BENCHMARK_LOG)
         // 기본은 즉시 표시(저지연). PTS 스케줄 표시는 지연을 늘릴 수 있다.
         videoRenderer.scheduledOutputBufferRelease =
@@ -188,7 +199,7 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
         log("Server started on port $port")
     }
 
-    fun stopServer() {
+    fun stopServer(stopSelf: Boolean = true) {
         audioRenderer.detachEngine()
         if (nativeHandle != 0L) {
             NativeBridge.nativeStop(nativeHandle)
@@ -207,7 +218,7 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
         _connectionCount.value = 0
         stopForeground(STOP_FOREGROUND_REMOVE)
         foregroundStarted = false
-        stopSelf()
+        if (stopSelf) stopSelf()
         log("Server stopped")
     }
 
@@ -230,6 +241,22 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        // 앱 언어 변경: 페어링 코드는 언어에 묶여 있으므로 언어가 바뀌면 새 언어로
+        // 갱신해야 한다. 실행 중인 서버는 startServer가 재실행되지 않아 코드가 안
+        // 바뀌므로, 서버가 돌고 있고 연결이 없으면 재시작해 새 기기 이름(코드)을
+        // 즉시 적용한다 — startServer가 새 언어 코드를 생성/영속화한다.
+        // 연결 중이거나 서버가 꺼져 있으면 다음 서버 시작 때 갱신된다.
+        val appLocale = newConfig.locales[0] ?: Locale.getDefault()
+        val storedLang = getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
+            .getString(Prefs.PAIRING_CODE_LANG, null)
+        if (storedLang != appLocale.language &&
+            _serverState.value == ServerState.RUNNING && _connectionCount.value == 0
+        ) {
+            log("App language changed (${storedLang} -> ${appLocale.language}); restarting server")
+            stopServer(stopSelf = false)
+            startServer()
+        }
+
         if (nativeHandle == 0L || _serverState.value != ServerState.RUNNING) return
         val (w, h) = realDisplaySize()
         NativeBridge.nativeSetDisplaySize(nativeHandle, w, h, displayMaxRefreshRate())
@@ -279,6 +306,16 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
         videoRenderer.clearSurface(surface)
     }
 
+    /** 전환 애니메이션: 스케일(박스 크기 → 화면 밖) + 컨테이너 페이드(영상만)를 렌더러에 전달한다. */
+    fun setVideoTransition(scale: Float, fade: Float) {
+        videoRenderer.setVideoTransition(scale, fade)
+    }
+
+    /** 외곽선(링) 설정: 테마 색, 내각 radius(기기 radius), 테두리 두께 — GL에서 영상과 함께 그린다. */
+    fun setVideoBorder(colorArgb: Int, radiusPx: Float, widthPx: Float) {
+        videoRenderer.setVideoBorder(colorArgb, radiusPx, widthPx)
+    }
+
     // ---- RaopCallbackHandler (native threads) ----
 
     override fun onVideoData(data: ByteArray, ntpTimeNs: Long, isH265: Boolean) {
@@ -295,6 +332,9 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
             } else {
                 videoRenderer.setResolution(w.toInt(), h.toInt())
             }
+            // 새 세션 시작: 전환 게이트 재무장 — 종료 직후 재연결(표면이 살아 있는 경우)에도
+            // 새 스트림의 첫 프레임에서 게이트가 다시 열려 애니메이션이 재생된다.
+            videoRenderer.onSessionStart()
             _mirroringActive.value = true
         }
         log("Video size: ${srcW}x${srcH} -> ${w}x${h}")

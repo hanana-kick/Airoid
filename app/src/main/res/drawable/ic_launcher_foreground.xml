@@ -1,33 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  안드로이드 머리(반원보다 얕은 원호 캡 + 안테나 두 개) 안에 AirPlay(화면 미러링) 아이콘이
-  들어 있는 어댑티브 아이콘 포그라운드. 전체가 벡터라 마스크/크기 변화에 대응한다.
+  어댑티브 아이콘 포그라운드: 화면 프레임 + 안테나 + 안드로이드 머리 (검정 단색).
+  원본 내용(1254 뷰포트, 스트로크 포함 x 69~1185 / y 236~1019)을 중심(627, 627.5)
+  기준 0.45배 축소해 어댑티브 안전 영역(중앙 66/108) 안에 여유 패딩을 두고 맞춘다 —
+  원형/둥근사각 어떤 마스크에서도 잘리지 않는다.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
+    android:viewportWidth="1254"
+    android:viewportHeight="1254">
 
-    <!-- 왼쪽 안테나 (머리 상단에 연결) -->
-    <path
-        android:fillColor="#3DDC84"
-        android:pathData="M42,8 h2 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-2 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z" />
-    <!-- 오른쪽 안테나 (머리 상단에 연결) -->
-    <path
-        android:fillColor="#3DDC84"
-        android:pathData="M62,8 h2 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-2 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z" />
-    <!-- 안드로이드 머리 (반원보다 얕은 원호 캡: 반지름 32, 높이 28 < 32) -->
-    <path
-        android:fillColor="#3DDC84"
-        android:pathData="M22.3,44 A32,32 0 0 1 85.7,44 L22.3,44 Z" />
-    <!-- AirPlay TV 외곽선 (evenOdd로 내부 구멍) -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:fillType="evenOdd"
-        android:pathData="M43.5,26 h21 a3.5,3.5 0 0 1 3.5,3.5 v5 a3.5,3.5 0 0 1 -3.5,3.5 h-21 a3.5,3.5 0 0 1 -3.5,-3.5 v-5 a3.5,3.5 0 0 1 3.5,-3.5 z M45,29 h18 a2,2 0 0 1 2,2 v2 a2,2 0 0 1 -2,2 h-18 a2,2 0 0 1 -2,-2 v-2 a2,2 0 0 1 2,-2 z" />
-    <!-- AirPlay 삼각형 (위를 향함) -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,38 L62,44 L46,44 Z" />
+    <group
+        android:scaleX="0.45"
+        android:scaleY="0.45"
+        android:pivotX="627"
+        android:pivotY="627.5">
+
+        <!-- 둥근 화면 프레임 -->
+        <path
+            android:pathData="M326,929 H218 C159.5,929 112.5,881.5 112.5,823 V386 C112.5,327.5 160,279.5 218.5,279.5 H1035.5 C1094,279.5 1141.5,327 1141.5,385.5 V823 C1141.5,881.5 1094,929 1035.5,929 H928"
+            android:fillColor="#00000000"
+            android:strokeColor="#FF000000"
+            android:strokeWidth="87"
+            android:strokeLineCap="butt"
+            android:strokeLineJoin="round" />
+
+        <!-- 안테나 -->
+        <path
+            android:pathData="M446,729 L500,811 M808,729 L754,811"
+            android:fillColor="#00000000"
+            android:strokeColor="#FF000000"
+            android:strokeWidth="49"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+
+        <!-- 안드로이드 머리 -->
+        <path
+            android:pathData="M350,1019 C350,890.3 474,786 627,786 C780,786 904,890.3 904,1019 Z"
+            android:fillColor="#FF000000" />
+
+    </group>
+
 </vector>

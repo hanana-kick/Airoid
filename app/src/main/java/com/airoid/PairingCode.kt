@@ -3,10 +3,13 @@ package com.airoid
 import java.util.Locale
 
 /**
- * 페어링용 코드(유명 문학 작품 제목, 2~6자).
- * 기기 언어에 맞는 목록(한국어/영어/일본어/중국어)에서 뽑는다.
- * 코드는 영속화하지 않고, 연결 대기를 만들 때마다(서버 시작 시) 새로 생성한다.
- * AirPlay 기기 이름 "Airoid [코드]"와 대기 화면 표시에 함께 쓰인다.
+ * 페어링용 코드(유명 문학 작품 제목).
+ * 앱 언어(시스템 언어 + per-app 언어 오버라이드가 반영된 리소스 로케일)에 맞는
+ * 목록(한국어/영어/일본어/중국어)에서 뽑으며, 각 목록은 해당 언어의 원어 표기다 —
+ * 언어를 바꾸면 코드도 그 언어로 나온다. Locale.getDefault()는 per-app 오버라이드를
+ * 반영하지 않으므로(시스템 로케일을 반환) 호출자가 리소스 로케일을 넘겨야 한다.
+ * 코드 생성은 랜덤이며, 영속화(앱 재시작 시 유지)와 언어 변경 시 갱신은 호출자(서비스)가
+ * 담당한다. AirPlay 기기 이름 "Airoid [코드]"와 대기 화면 표시에 함께 쓰인다.
  * 기기 식별(영속 MAC/페어링 인증서)은 별개로 유지되므로 이름이 바뀌어도 동일 기기로 인식된다.
  */
 object PairingCode {
@@ -23,37 +26,38 @@ object PairingCode {
         "토끼전", "별주부전", "콩쥐팥쥐", "장화홍련", "빈처",
     )
 
-    /** 영어 — 영미 문학 (한국어 표기) */
+    /** 영어 — 영미 문학 (영어 표기, 코드박스에 들어가도록 짧은 형태) */
     private val ENGLISH = listOf(
-        "모비딕", "노인과바다", "오만과편견", "위대한유산", "폭풍의언덕", "제인에어",
-        "셜록홈즈", "드라큘라", "타임머신", "동물농장", "파리대왕", "보물섬",
-        "개츠비", "톰소여", "피터팬", "앨리스", "아이반호", "반지의제왕", "호빗",
-        "해리포터", "엠마", "테스", "주홍글자", "멋진신세계", "도리언그레이",
-        "프랑켄슈타인", "걸리버여행기", "로빈슨크루소", "올리버트위스트",
-        "오즈의마법사", "안네의일기", "햄릿", "다빈치코드", "천사와악마",
-        "정글북", "나니아", "우주전쟁", "투명인간", "작은아씨들", "비밀의화원",
-        "소공녀", "잃어버린세계", "원더",
+        "Moby Dick", "Old Man and Sea", "Pride and Prejudice", "Great Expectations",
+        "Wuthering Heights", "Jane Eyre", "Sherlock Holmes", "Dracula", "Time Machine",
+        "Animal Farm", "Lord of the Flies", "Treasure Island", "Gatsby", "Tom Sawyer",
+        "Peter Pan", "Alice", "Ivanhoe", "Lord of the Rings", "Hobbit", "Harry Potter",
+        "Emma", "Tess", "Scarlet Letter", "Brave New World", "Dorian Gray",
+        "Frankenstein", "Gulliver's Travels", "Robinson Crusoe", "Oliver Twist",
+        "Wizard of Oz", "Anne Frank", "Hamlet", "Da Vinci Code", "Angels and Demons",
+        "Jungle Book", "Narnia", "War of the Worlds", "Invisible Man", "Little Women",
+        "Secret Garden", "Little Princess", "Lost World", "Wonder",
     )
 
-    /** 일본어 — 일본 문학 (한국어 표기) */
+    /** 일본어 — 일본 문학 (일본어 표기) */
     private val JAPANESE = listOf(
-        "인간실격", "금각사", "가면의고백", "풍요의바다", "라쇼몽", "덤불속",
-        "지옥변", "치인의사랑", "산소리", "어떤여자", "상실의시대", "해변의카프카",
-        "개인적인체험", "도련님", "백야행", "설국", "마음", "사양", "침묵",
-        "화차", "비밀", "키친", "도쿄타워", "센바즈루", "투우", "세설", "열쇠",
-        "이즈의무희", "무희", "다카세부네", "바다와독약", "은하철도의밤",
+        "人間失格", "金閣寺", "仮面の告白", "豊饒の海", "羅生門", "藪の中",
+        "地獄変", "痴人の愛", "山の音", "或る女", "ノルウェイの森", "海辺のカフカ",
+        "個人的な体験", "坊っちゃん", "白夜行", "雪国", "こころ", "斜陽", "沈黙",
+        "火車", "秘密", "キッチン", "東京タワー", "千羽鶴", "闘牛", "細雪", "鍵",
+        "伊豆の踊子", "舞姫", "高瀬舟", "海と毒薬", "銀河鉄道の夜",
     )
 
-    /** 중국어 — 중국 문학 (한국어 표기) */
+    /** 중국어 — 중국 문학 (중국어 간체 표기) */
     private val CHINESE = listOf(
-        "삼국지", "수호전", "서유기", "홍루몽", "금병매", "유림외사", "아Q정전",
-        "광인일기", "낙타상자", "사조영웅전", "신조협려", "의천도룡기", "녹정기",
-        "소오강호", "천룡팔부", "경세통언", "동주열국지", "벽혈검", "비호외전",
-        "설산비호", "연성결", "서검은구록", "백발마녀전", "고향", "약", "축복",
-        "공을기", "초한지", "유성호접검", "천잠변", "대당쌍룡전",
+        "三国演义", "水浒传", "西游记", "红楼梦", "金瓶梅", "儒林外史", "阿Q正传",
+        "狂人日记", "骆驼祥子", "射雕英雄传", "神雕侠侣", "倚天屠龙记", "鹿鼎记",
+        "笑傲江湖", "天龙八部", "警世通言", "东周列国志", "碧血剑", "飞狐外传",
+        "雪山飞狐", "连城诀", "书剑恩仇录", "白发魔女传", "故乡", "药", "祝福",
+        "孔乙己", "楚汉春秋", "流星蝴蝶剑", "天蚕变", "大唐双龙传",
     )
 
-    /** 기기 언어에 맞는 코드 목록. 기본은 한국어. */
+    /** 기기 언어(앱 언어 오버라이드 포함)에 맞는 코드 목록. 기본은 한국어. */
     private fun listFor(locale: Locale): List<String> = when (locale.language) {
         "en" -> ENGLISH
         "ja" -> JAPANESE
@@ -61,8 +65,8 @@ object PairingCode {
         else -> KOREAN
     }
 
-    /** 연결 대기마다 새 코드를 뽑는다. */
-    fun random(): String = listFor(Locale.getDefault()).random()
+    /** 연결 대기마다 새 코드를 뽑는다. appLocale은 per-app 오버라이드가 반영된 리소스 로케일. */
+    fun random(appLocale: Locale): String = listFor(appLocale).random()
 
     /** AirPlay에 노출되는 기기 이름: "Airoid [코드]". */
     fun deviceName(code: String): String = "Airoid $code"
