@@ -162,34 +162,40 @@ fun StandbyScreen(connecting: Boolean) {
 }
 
 /**
- * 화면 미러링(에어플레이) 아이콘 — SF Symbol "rectangle.on.rectangle" 참조:
- * 가로형 모니터 비율(13×10.5)의 둥근 **외곽선** 사각형 두 개가 대각선으로 겹친 형태
- * (뒤쪽 좌상, 앞쪽 우하). viewBox 24 기준 SF 근사 좌표를 그대로 쓴다.
+ * 화면 미러링(에어플레이) 아이콘 — SF Symbol "airplay.video" 원본 경로 데이터
+ * (SF Symbols 기반 공개 SVG 경로를 그대로 사용): 하단 중앙이 열린 TV 외곽선 + 위를 향한 삼각형.
  */
 private val MirrorIcon: ImageVector = ImageVector.Builder(
-    name = "ScreenMirror",
+    name = "AirplayVideo",
     defaultWidth = 24.dp,
     defaultHeight = 24.dp,
     viewportWidth = 24f,
     viewportHeight = 24f,
 ).apply {
-    // 뒤 사각형 (좌상): x 3.5, y 3.5, 13×10.5
+    // TV 외곽선 (하단 중앙 열림)
     path(
         stroke = SolidColor(Color.Black),
-        strokeLineWidth = 1.6f,
+        strokeLineWidth = 2f,
         strokeLineCap = StrokeCap.Round,
         strokeLineJoin = StrokeJoin.Round,
     ) {
-        roundedRect(3.5f, 3.5f, 16.5f, 14f, 2f)
+        moveTo(5f, 17f)
+        lineTo(4f, 17f)
+        curveTo(2.89543f, 17f, 2f, 16.1046f, 2f, 15f)
+        lineTo(2f, 5f)
+        curveTo(2f, 3.89543f, 2.89543f, 3f, 4f, 3f)
+        lineTo(20f, 3f)
+        curveTo(21.1046f, 3f, 22f, 3.89543f, 22f, 5f)
+        lineTo(22f, 15f)
+        curveTo(22f, 16.1046f, 21.1046f, 17f, 20f, 17f)
+        lineTo(19f, 17f)
     }
-    // 앞 사각형 (우하): x 7.5, y 9.5, 13×10.5
-    path(
-        stroke = SolidColor(Color.Black),
-        strokeLineWidth = 1.6f,
-        strokeLineCap = StrokeCap.Round,
-        strokeLineJoin = StrokeJoin.Round,
-    ) {
-        roundedRect(7.5f, 9.5f, 20.5f, 20f, 2f)
+    // AirPlay 삼각형 (위를 향함)
+    path(fill = SolidColor(Color.Black)) {
+        moveTo(12f, 16f)
+        lineTo(18f, 21f)
+        lineTo(6f, 21f)
+        close()
     }
 }.build()
 
