@@ -10,6 +10,7 @@ import android.view.WindowManager
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -104,29 +105,31 @@ fun StandbyScreen(
     val boxAlpha = 1f - transition
     val contentAlpha = 1f - transition * transition // 내용은 배경보다 먼저 사라진다
 
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .graphicsLayer { alpha = boxAlpha }
-    ) {
-        Surface(
-            shape = RoundedCornerShape(cornerRadius),
-            color = Color.Black,
-            border = BorderStroke(borderWidth, scheme.primary),
+    Box(Modifier.fillMaxSize()) {
+        // 검정 배경: 전환 시 페이드아웃되어 미러 영상이 드러난다
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .graphicsLayer { alpha = boxAlpha }
+        )
+        // 박스(외곽선만): 불투명·또렷하게 유지한 채 크기가 변하며(최소 ↔ 화면 1.1배)
+        // 화면 밖으로 나가거나 돌아온다. 내부 검정은 뒤의 배경이 비쳐 보인다.
+        DeviceAspectBox(
+            aspect = screenAspect,
+            transition = transition,
             modifier = Modifier
                 .align(Alignment.Center)
                 .onSizeChanged {
                     boxWidthPx = it.width
                     onBoxWidthPx(it.width)
                 }
-                .graphicsLayer { alpha = boxAlpha }
+                .border(borderWidth, scheme.primary, RoundedCornerShape(cornerRadius)),
         ) {
-            DeviceAspectBox(aspect = screenAspect, transition = transition) {
-                Column(
-                    Modifier
-                        .padding(horizontal = 28.dp, vertical = contentVerticalPadding)
-                        .graphicsLayer { alpha = contentAlpha },
+            Column(
+                Modifier
+                    .padding(horizontal = 28.dp, vertical = contentVerticalPadding)
+                    .graphicsLayer { alpha = contentAlpha },
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -155,7 +158,6 @@ fun StandbyScreen(
                     }
                 }
             }
-        }
     }
 }
 
@@ -190,8 +192,13 @@ private fun CodeBox(code: String, modifier: Modifier = Modifier) {
  * 1.1배로 커지면 외곽선이 화면 밖으로 나간다.
  */
 @Composable
-private fun DeviceAspectBox(aspect: Float, transition: Float, content: @Composable () -> Unit) {
-    SubcomposeLayout(Modifier) { constraints ->
+private fun DeviceAspectBox(
+    aspect: Float,
+    transition: Float,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    SubcomposeLayout(modifier) { constraints ->
         val placeable = subcompose("content", content)[0]
             .measure(constraints.copy(minWidth = 0, minHeight = 0))
         // 최소 크기: 내용 폭(너비)과, 비율상 높이를 맞추는 데 필요한 폭 중 큰 쪽.
