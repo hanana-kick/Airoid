@@ -71,6 +71,7 @@ struct raop_s {
     uint8_t maxFPS;
     uint8_t overscanned;
     uint8_t clientFPSdata;
+    uint8_t rotation; /* ScreenRotate(features bit 8): 0=portrait, 1=landscape — /info displays.rotation으로 광고 */
 
     int audio_delay_micros;
 
@@ -765,6 +766,9 @@ int raop_set_plist(raop_t *raop, const char *plist_item, const int value) {
     } else if (strcmp(plist_item, "clientFPSdata") == 0) {
         raop->clientFPSdata = (value ? 1 : 0);
         if ((int) raop->clientFPSdata  != value) retval = 1;
+    } else if (strcmp(plist_item, "rotation") == 0) {
+        raop->rotation = (value ? 1 : 0);
+        if ((int) raop->rotation != value) retval = 1;
     } else if (strcmp(plist_item, "audio_delay_micros") == 0) {
         if (value >= 0 && value <= 10 * SECOND_IN_USECS) {     
             raop->audio_delay_micros = value;

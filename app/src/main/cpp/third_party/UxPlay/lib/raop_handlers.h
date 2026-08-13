@@ -221,7 +221,7 @@ raop_handler_info(raop_conn_t *conn,
     plist_t displays_0_height_node = plist_new_uint(raop->height);
     plist_t displays_0_width_pixels_node = plist_new_uint(raop->width);
     plist_t displays_0_height_pixels_node = plist_new_uint(raop->height);
-    plist_t displays_0_rotation_node = plist_new_bool(0); /* set to true in AppleTV gen 3 (which has features bit 8  set */
+    plist_t displays_0_rotation_node = plist_new_bool(raop->rotation != 0); /* ScreenRotate: 현재 방향을 송신기에 알린다 */
     plist_t displays_0_refresh_rate_node = plist_new_real((double) 1.0 / raop->refreshRate);  /* set as real 0.166666  = 60hz in AppleTV gen 3 */
     plist_t displays_0_max_fps_node = plist_new_uint(raop->maxFPS);
     plist_t displays_0_overscanned_node = plist_new_bool(raop->overscanned);

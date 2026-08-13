@@ -20,6 +20,7 @@ object NativeBridge {
     external fun nativeDisconnectClients(handle: Long)
 
     external fun nativeSetDisplaySize(handle: Long, w: Int, h: Int, fps: Int)
+    external fun nativeSetRotation(handle: Long, rotated: Boolean)
     external fun nativeSetPlist(handle: Long, key: String, value: Int)
     external fun nativeSetH265Enabled(handle: Long, enabled: Boolean)
     external fun nativeSetCodecs(handle: Long, alac: Boolean, aac: Boolean)

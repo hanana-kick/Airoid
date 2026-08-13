@@ -203,6 +203,19 @@ Java_com_airoid_bridge_NativeBridge_nativeSetDisplaySize(
 
 extern "C"
 JNIEXPORT void JNICALL
+Java_com_airoid_bridge_NativeBridge_nativeSetRotation(
+        JNIEnv *env, jobject thiz, jlong handle, jboolean rotated) {
+
+    server_ctx_t *ctx = (server_ctx_t *)(intptr_t)handle;
+    if (!ctx || !ctx->raop) return;
+
+    /* ScreenRotate: /info의 displays.rotation에 반영돼 송신기가 방향 변경을 감지한다 */
+    raop_set_plist(ctx->raop, "rotation", rotated ? 1 : 0);
+    LOGI("Rotation set to %s", rotated ? "landscape" : "portrait");
+}
+
+extern "C"
+JNIEXPORT void JNICALL
 Java_com_airoid_bridge_NativeBridge_nativeDisconnectClients(
         JNIEnv *env, jobject thiz, jlong handle) {
 

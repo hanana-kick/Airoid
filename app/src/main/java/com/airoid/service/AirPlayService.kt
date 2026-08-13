@@ -75,6 +75,9 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     private val _pairingCode = MutableStateFlow("")
     val pairingCode = _pairingCode.asStateFlow()
 
+    // 마지막으로 보고한 화면 방향 (ScreenRotate용)
+    private var lastRotated: Boolean? = null
+
     var logCallback: ((String) -> Unit)? = null
 
     private fun log(msg: String) {
@@ -234,6 +237,15 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
         NativeBridge.nativeSetDisplaySize(nativeHandle, w, h, displayMaxRefreshRate())
         _videoResolution.value = "${w}x${h}"
         _videoAspect.value = w.toFloat() / h
+
+        // ScreenRotate: 방향 변경 시 /info의 displays.rotation에 반영 —
+        // 송신기가 재조회하면 새 Codec Data(SPS/PPS)를 보내고 렌더러가 코덱을 재시작한다
+        val rotated = w > h
+        if (rotated != lastRotated) {
+            lastRotated = rotated
+            NativeBridge.nativeSetRotation(nativeHandle, rotated)
+            log("Rotation: ${if (rotated) "landscape" else "portrait"}")
+        }
     }
 
     /** 서버 측에서 현재 연결된 AirPlay 클라이언트(미러링/오디오)를 강제로 종료한다. */
