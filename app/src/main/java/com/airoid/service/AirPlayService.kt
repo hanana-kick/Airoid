@@ -228,8 +228,11 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
 
     /**
      * 액티비티가 실제 표시 영역 크기를 보고한다(회전/스플릿뷰/윈도우모드 등 모든 리사이즈 시).
-     * 광고 해상도(SDP)를 갱신하고, 세로↔가로 방향 전환 시에는 스트림 해상도가 협상 시점에
-     * 고정되어 있으므로 세션을 재협상(종료)해 송신기가 새 방향 크기로 재연결하게 한다.
+     * 광고 해상도(SDP)를 갱신한다. 표시는 GL fit으로 비율을 유지한다(기본).
+     *
+     * 실험 모듈: sidecar_rotation 플래그가 켜지면, 세로↔가로 방향 전환 시 세션을 재협상해
+     * 송신기가 새 방향 크기로 재연결하게 한다(Sidecar 방식). 스트림 해상도는 협상 시점에
+     * 고정되어 있어 방향을 바꾸려면 재연결이 필요하다.
      */
     fun setVideoAreaSize(w: Int, h: Int) {
         if (w <= 0 || h <= 0) return
@@ -238,13 +241,17 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
         _videoResolution.value = "${w}x${h}"
         _videoAspect.value = w.toFloat() / h
 
-        val aspect = w.toFloat() / h
-        val prev = lastAdvertisedAspect
-        if (prev != null && (aspect >= 1f) != (prev >= 1f)) {
-            log("Orientation flipped to ${w}x${h}; renegotiating session")
-            disconnectClients()
+        val sidecar = getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
+            .getBoolean(Prefs.SIDECAR_ROTATION, Prefs.DEF_SIDECAR_ROTATION)
+        if (sidecar) {
+            val aspect = w.toFloat() / h
+            val prev = lastAdvertisedAspect
+            if (prev != null && (aspect >= 1f) != (prev >= 1f)) {
+                log("Sidecar mode: orientation flipped to ${w}x${h}; renegotiating session")
+                disconnectClients()
+            }
+            lastAdvertisedAspect = aspect
         }
-        lastAdvertisedAspect = aspect
     }
 
     /** 서버 측에서 현재 연결된 AirPlay 클라이언트(미러링/오디오)를 강제로 종료한다. */

@@ -45,4 +45,6 @@ object Prefs {
     const val ADVERTISE_VIDEO = "advertise_video"; const val DEF_ADVERTISE_VIDEO = true
     const val ADVERTISE_AUDIO = "advertise_audio"; const val DEF_ADVERTISE_AUDIO = true
     const val LAUNCH_ON_CONNECT = "launch_on_connect"; const val DEF_LAUNCH_ON_CONNECT = true
+    // 실험: 방향 전환 시 세션 재협상(Sidecar 방식). 기본 꺼짐 = 비율 유지(fit)
+    const val SIDECAR_ROTATION = "sidecar_rotation"; const val DEF_SIDECAR_ROTATION = false
 }
