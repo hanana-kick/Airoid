@@ -9,14 +9,14 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- 왼쪽 안테나 -->
+    <!-- 왼쪽 안테나 (머리 상단에 연결) -->
     <path
         android:fillColor="#3DDC84"
-        android:pathData="M42,4 h2 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-2 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z" />
-    <!-- 오른쪽 안테나 -->
+        android:pathData="M42,8 h2 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-2 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z" />
+    <!-- 오른쪽 안테나 (머리 상단에 연결) -->
     <path
         android:fillColor="#3DDC84"
-        android:pathData="M62,4 h2 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-2 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z" />
+        android:pathData="M62,8 h2 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-2 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z" />
     <!-- 안드로이드 머리 (반원보다 얕은 원호 캡: 반지름 32, 높이 28 < 32) -->
     <path
         android:fillColor="#3DDC84"
@@ -25,9 +25,9 @@
     <path
         android:fillColor="#FFFFFF"
         android:fillType="evenOdd"
-        android:pathData="M40,24 h28 a4,4 0 0 1 4,4 v8 a4,4 0 0 1 -4,4 h-28 a4,4 0 0 1 -4,-4 v-8 a4,4 0 0 1 4,-4 z M41.5,27 h25 a2.5,2.5 0 0 1 2.5,2.5 v5 a2.5,2.5 0 0 1 -2.5,2.5 h-25 a2.5,2.5 0 0 1 -2.5,-2.5 v-5 a2.5,2.5 0 0 1 2.5,-2.5 z" />
+        android:pathData="M43.5,26 h21 a3.5,3.5 0 0 1 3.5,3.5 v5 a3.5,3.5 0 0 1 -3.5,3.5 h-21 a3.5,3.5 0 0 1 -3.5,-3.5 v-5 a3.5,3.5 0 0 1 3.5,-3.5 z M45,29 h18 a2,2 0 0 1 2,2 v2 a2,2 0 0 1 -2,2 h-18 a2,2 0 0 1 -2,-2 v-2 a2,2 0 0 1 2,-2 z" />
     <!-- AirPlay 삼각형 (위를 향함) -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,40 L62,44 L46,44 Z" />
+        android:pathData="M54,38 L62,44 L46,44 Z" />
 </vector>

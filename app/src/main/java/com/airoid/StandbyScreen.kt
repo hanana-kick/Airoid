@@ -1,12 +1,18 @@
 package com.airoid
 
 import android.app.Activity
+import android.content.Context
+import android.content.res.Resources
+import android.os.Build
+import android.view.RoundedCorner
 import android.view.WindowInsets as AndroidWindowInsets
+import android.view.WindowManager
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -47,12 +53,19 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import kotlin.math.roundToInt
@@ -60,73 +73,164 @@ import kotlinx.coroutines.launch
 
 /**
  * 미러링 대기 화면. 검정 배경을 사용한다.
- * Airoid 아래에 현재 세션의 페어링 코드를 표시한다:
- * 코드 필(primaryContainer)에 SF "airplay.video" 아이콘과 코드가 함께 들어간다.
- * 로딩 스피너/대기 텍스트는 표시하지 않는다. 연결이 시작되면(connecting) 필 아래에 "연결 중…"이 나타난다.
+ * 기기 화면 비율의 둥근 박스(기기 코너 반경, 테마색 외곽선, 검정 내부)가
+ * "Airoid" 타이틀과 페어링 코드(코드 필: SF "airplay.video" 아이콘 + 코드)를 함께 감싼다.
+ * 박스는 비율을 유지하되 내용(타이틀+코드+상태)보다 작아지지 않는 최소 크기를 보장한다.
+ * 로딩 스피너/대기 텍스트는 표시하지 않는다. 연결이 시작되면(connecting) 박스 안에 "연결 중…"이 나타난다.
  * 코드는 서버가 연결 대기를 만들 때마다 새로 생성되어 전달된다(영속화하지 않음).
  */
 @Composable
 fun StandbyScreen(connecting: Boolean, code: String) {
     val scheme = MaterialTheme.colorScheme
+    val config = LocalConfiguration.current
+    // 기기 화면 비율: 세로일 때 0.755 (1848:2448), 회전 시 자동 반영
+    val screenAspect = config.screenWidthDp.toFloat() / config.screenHeightDp.toFloat()
+    // 코너 radius는 "안쪽(검정 내부)" 기준으로 기기와 일치시킨다.
+    // 테두리가 shape 안쪽에 그려지므로 shape radius = 기기 radius + 테두리 두께.
+    val borderWidth = 4.dp
+    val cornerRadius = deviceCornerRadiusDp() + borderWidth
+    // 상하 패딩을 크게 유지한다(항상 64dp).
+    // 세로에서는 박스 폭이 내용 폭에 지배되어 크기가 그대로이고,
+    // 가로에서는 높이 제약(내용높이 × 비율)이 폭을 키워 박스가 더 커 보인다.
+    val contentVerticalPadding = 64.dp
 
     Box(
         Modifier
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
+        Surface(
+            shape = RoundedCornerShape(cornerRadius),
+            color = Color.Black,
+            border = BorderStroke(borderWidth, scheme.primary),
+            modifier = Modifier.align(Alignment.Center)
         ) {
-            Text(
-                text = stringResource(R.string.app_name),
-                color = scheme.onBackground,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Surface(
-                shape = RoundedCornerShape(28.dp),
-                color = scheme.primaryContainer,
-                modifier = Modifier.padding(top = 16.dp),
-            ) {
-                Row(
-                    Modifier.padding(horizontal = 28.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+            DeviceAspectBox(aspect = screenAspect) {
+                Column(
+                    Modifier.padding(horizontal = 28.dp, vertical = contentVerticalPadding),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    // AirPlay 아이콘 (상단)
                     Icon(
                         imageVector = MirrorIcon,
                         contentDescription = null,
-                        tint = scheme.onPrimaryContainer,
-                        modifier = Modifier.size(24.dp),
+                        tint = scheme.onBackground,
+                        modifier = Modifier.size(44.dp),
                     )
-                    Text(
-                        text = code,
-                        color = scheme.onPrimaryContainer,
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(start = 10.dp)
-                    )
-                }
-            }
-            AnimatedContent(
-                targetState = connecting,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "status",
-            ) { isConnecting ->
-                if (isConnecting) {
-                    Text(
-                        text = stringResource(R.string.standby_connecting),
-                        color = scheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(top = 28.dp)
-                    )
+                    // "Airoid [코드]" — 코드는 코드박스 스타일로
+                    Row(
+                        Modifier.padding(top = 18.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.app_name),
+                            color = scheme.onBackground,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        CodeBox(
+                            code = code,
+                            modifier = Modifier.padding(start = 10.dp),
+                        )
+                    }
+                    AnimatedContent(
+                        targetState = connecting,
+                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        label = "status",
+                    ) { isConnecting ->
+                        if (isConnecting) {
+                            Text(
+                                text = stringResource(R.string.standby_connecting),
+                                color = scheme.onBackground,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.padding(top = 24.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
     }
+}
+
+/**
+ * 코드를 "코드"임을 알아볼 수 있게 감싸는 코드박스.
+ * 어두운 표면(surfaceVariant) + 고정폭 글꼴 + 둥근 모서리.
+ */
+@Composable
+private fun CodeBox(code: String, modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        modifier
+            .background(scheme.surfaceVariant, RoundedCornerShape(8.dp))
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = code,
+            color = scheme.onSurfaceVariant,
+            style = MaterialTheme.typography.headlineSmall.copy(lineHeight = 32.sp),
+            fontWeight = FontWeight.SemiBold,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1,
+        )
+    }
+}
+
+/**
+ * 기기 화면 비율을 유지하는 박스. 크기는 "내용이 들어가는 최소 크기" —
+ * 내용(아이콘+타이틀+코드+상태, 패딩 포함)보다 작아지지 않으면서 비율을 지킨다.
+ * 높이는 항상 폭 / aspect 로 비율을 맞춘다.
+ */
+@Composable
+private fun DeviceAspectBox(aspect: Float, content: @Composable () -> Unit) {
+    SubcomposeLayout(Modifier) { constraints ->
+        val placeable = subcompose("content", content)[0]
+            .measure(constraints.copy(minWidth = 0, minHeight = 0))
+        // 최소 크기: 내용 폭(너비)과, 비율상 높이를 맞추는 데 필요한 폭 중 큰 쪽.
+        // 높이 = 폭/aspect 이므로 높이가 내용보다 작아지지 않으려면 폭 >= 내용높이 * aspect.
+        var width = maxOf(
+            placeable.width,
+            (placeable.height * aspect).roundToInt(),
+        ).coerceAtMost(constraints.maxWidth)
+        var height = (width / aspect).roundToInt()
+        if (height > constraints.maxHeight) {
+            height = constraints.maxHeight
+            width = (height * aspect).roundToInt()
+        }
+        layout(width, height) {
+            placeable.place(
+                x = (width - placeable.width) / 2,
+                y = (height - placeable.height) / 2,
+            )
+        }
+    }
+}
+
+/**
+ * 기기 디스플레이 코너 반경(px)을 dp로 변환한다.
+ * 1) API 31+: RoundedCorner 인셋(가장 정확한 현재 표시 설정 값)
+ * 2) 폴백: 시스템 리소스 "rounded_corner_radius" (일부 OEM만 정의, 삼성은 0)
+ * 3) 최종 폴백: 24.dp
+ */
+@Composable
+private fun deviceCornerRadiusDp(): Dp {
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    var radiusPx = 0
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val wm = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+        radiusPx = wm?.maximumWindowMetrics?.windowInsets
+            ?.getRoundedCorner(RoundedCorner.POSITION_TOP_LEFT)?.radius ?: 0
+    }
+    if (radiusPx <= 0) {
+        val res = Resources.getSystem()
+        val id = res.getIdentifier("rounded_corner_radius", "dimen", "android")
+        radiusPx = if (id != 0) {
+            runCatching { res.getDimensionPixelSize(id) }.getOrDefault(0)
+        } else 0
+    }
+    return if (radiusPx > 0) with(density) { radiusPx.toDp() } else 24.dp
 }
 
 /**
