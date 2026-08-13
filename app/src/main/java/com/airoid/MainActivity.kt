@@ -14,6 +14,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -25,6 +26,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -134,17 +136,16 @@ fun AiroidApp(service: AirPlayService?) {
             val showVideo = (mirrored || transition.value > 0f) && service != null
             if (showVideo) {
                 val t = transition.value
+                val reveal = (t / 0.4f).coerceIn(0f, 1f)
                 Box(
                     Modifier
                         .fillMaxSize()
                         .graphicsLayer {
-                            // 2단계: 먼저 영상이 페이드 인(검정이 걷히며)되고,
-                            // 그 뒤에 박스가 커진다. 스탠바이가 사라지는 순간 "띡" 튀지 않는다.
-                            val reveal = (t / 0.4f).coerceIn(0f, 1f)
-                            alpha = reveal
+                            // SurfaceView는 부모 레이어 alpha를 따르지 않으므로
+                            // alpha는 아래 검정 오버레이로 처리하고 여기선 scale만 쓴다.
                             if (mirrored) {
                                 // 연결: "흐림 → 또렷" — 살짝 확대된 상태에서 원래 크기로
-                                val focusScale = 1f + 0.04f * (1f - t)
+                                val focusScale = 1f + 0.04f * (1f - reveal)
                                 scaleX = focusScale
                                 scaleY = focusScale
                             } else {
@@ -160,6 +161,13 @@ fun AiroidApp(service: AirPlayService?) {
                 ) {
                     MirrorView(service)
                 }
+                // 영상 페이드 인/아웃용 검정 오버레이 (일반 레이어라 alpha가 동작한다)
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black)
+                        .graphicsLayer { alpha = 1f - reveal }
+                )
             }
             // 스탠바이(상단): 대기 중 상시, 전환 중에는 페이드아웃/인 + 박스 확장/축소
             if (!mirrored || transition.value < 1f) {

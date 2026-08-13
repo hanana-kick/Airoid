@@ -105,19 +105,11 @@ fun StandbyScreen(
     val reveal = (transition / 0.4f).coerceIn(0f, 1f)
     val growth = ((transition - 0.4f) / 0.6f).coerceIn(0f, 1f)
     var boxWidthPx by remember { mutableStateOf(0) }
-    val boxAlpha = 1f - reveal
     val contentAlpha = 1f - growth * growth // 내용은 배경보다 먼저 사라진다
 
     Box(Modifier.fillMaxSize()) {
-        // 검정 배경: 전환 시 페이드아웃되어 미러 영상이 드러난다
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(Color.Black)
-                .graphicsLayer { alpha = boxAlpha }
-        )
         // 박스(외곽선만): 불투명·또렷하게 유지한 채 크기가 변하며(최소 ↔ 화면 1.1배)
-        // 화면 밖으로 나가거나 돌아온다. 내부 검정은 뒤의 배경이 비쳐 보인다.
+        // 화면 밖으로 나가거나 돌아온다. 내부 검정은 뒤의 검정 배경(창/오버레이)이 비친다.
         DeviceAspectBox(
             aspect = screenAspect,
             growth = growth,
