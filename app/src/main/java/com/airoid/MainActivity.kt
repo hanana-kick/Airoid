@@ -141,15 +141,13 @@ fun AiroidApp(service: AirPlayService?) {
                                 scaleX = focusScale
                                 scaleY = focusScale
                             } else {
-                                // 종료: 화면이 박스 크기로 작아지며 스탠바이로 복귀
+                                // 종료: 화면이 박스(현재 확장/축소 중인) 크기로 작아지며 복귀
                                 val target =
-                                    if (boxWidthPx > 0 && screenWidthPx > 0) {
-                                        screenWidthPx.toFloat() / boxWidthPx
+                                    if (screenWidthPx > 0) {
+                                        (boxWidthPx.toFloat() / screenWidthPx).coerceIn(0f, 1f)
                                     } else 1f
-                                val boxScale = 1f + (target - 1f) * t // t: 1→0
-                                val shrink = boxScale / target
-                                scaleX = shrink
-                                scaleY = shrink
+                                scaleX = target
+                                scaleY = target
                             }
                         }
                 ) {

@@ -86,7 +86,6 @@ fun StandbyScreen(
 ) {
     val scheme = MaterialTheme.colorScheme
     val config = LocalConfiguration.current
-    val density = LocalDensity.current
     // 기기 화면 비율: 세로일 때 0.755 (1848:2448), 회전 시 자동 반영
     val screenAspect = config.screenWidthDp.toFloat() / config.screenHeightDp.toFloat()
     // 코너 radius는 "안쪽(검정 내부)" 기준으로 기기와 일치시킨다.
@@ -98,13 +97,10 @@ fun StandbyScreen(
     // 가로에서는 높이 제약(내용높이 × 비율)이 폭을 키워 박스가 더 커 보인다.
     val contentVerticalPadding = 64.dp
 
-    // 미러링 전환(transition 0→1): 박스가 화면 비율을 유지한 채 전체 화면으로 확장되고,
-    // 배경(검정)과 내용(아이콘+코드)이 사라진다. 박스 비율 = 화면 비율이므로
-    // 균일 스케일(화면폭/박스폭)이면 정확히 화면을 덮는다.
+    // 미러링 전환(transition 0→1): 박스 크기가 최소 크기 ↔ 화면 1.1배 사이를 보간하며
+    // 확장/축소된다(레이아웃 크기 애니메이션 — 외곽선이 래스터 보간 없이 또렷하다).
+    // 배경(검정)과 내용(아이콘+코드)은 페이드아웃/인된다.
     var boxWidthPx by remember { mutableStateOf(0) }
-    val boxWidthDp = with(density) { boxWidthPx.toDp() }
-    val targetScale = if (boxWidthDp.value > 0f) config.screenWidthDp.toFloat() / boxWidthDp.value else 1f
-    val boxScale = 1f + (targetScale - 1f) * transition
     val boxAlpha = 1f - transition
     val contentAlpha = 1f - transition * transition // 내용은 배경보다 먼저 사라진다
 
@@ -124,12 +120,9 @@ fun StandbyScreen(
                     boxWidthPx = it.width
                     onBoxWidthPx(it.width)
                 }
-                .graphicsLayer {
-                    scaleX = boxScale
-                    scaleY = boxScale
-                }
+                .graphicsLayer { alpha = boxAlpha }
         ) {
-            DeviceAspectBox(aspect = screenAspect) {
+            DeviceAspectBox(aspect = screenAspect, transition = transition) {
                 Column(
                     Modifier
                         .padding(horizontal = 28.dp, vertical = contentVerticalPadding)
@@ -191,25 +184,26 @@ private fun CodeBox(code: String, modifier: Modifier = Modifier) {
 
 /**
  * 기기 화면 비율을 유지하는 박스. 크기는 "내용이 들어가는 최소 크기" —
- * 내용(아이콘+타이틀+코드+상태, 패딩 포함)보다 작아지지 않으면서 비율을 지킨다.
- * 높이는 항상 폭 / aspect 로 비율을 맞춘다.
+ * 내용(아이콘+타이틀+코드, 패딩 포함)보다 작아지지 않으면서 비율을 지킨다.
+ * transition(0..1): 최소 크기 ↔ 화면 1.1배 사이를 크기 자체로 보간한다.
+ * 크기 레이아웃으로 애니메이션하므로(래스터 스케일 아님) 외곽선이 항상 또렷하고,
+ * 1.1배로 커지면 외곽선이 화면 밖으로 나간다.
  */
 @Composable
-private fun DeviceAspectBox(aspect: Float, content: @Composable () -> Unit) {
+private fun DeviceAspectBox(aspect: Float, transition: Float, content: @Composable () -> Unit) {
     SubcomposeLayout(Modifier) { constraints ->
         val placeable = subcompose("content", content)[0]
             .measure(constraints.copy(minWidth = 0, minHeight = 0))
         // 최소 크기: 내용 폭(너비)과, 비율상 높이를 맞추는 데 필요한 폭 중 큰 쪽.
         // 높이 = 폭/aspect 이므로 높이가 내용보다 작아지지 않으려면 폭 >= 내용높이 * aspect.
-        var width = maxOf(
+        val minW = maxOf(
             placeable.width,
             (placeable.height * aspect).roundToInt(),
         ).coerceAtMost(constraints.maxWidth)
-        var height = (width / aspect).roundToInt()
-        if (height > constraints.maxHeight) {
-            height = constraints.maxHeight
-            width = (height * aspect).roundToInt()
-        }
+        // 최대 크기: 화면의 1.1배 — 외곽선이 화면 밖으로 나간다.
+        val maxW = (constraints.maxWidth * 1.1f).roundToInt()
+        val width = (minW + (maxW - minW) * transition).roundToInt()
+        val height = (width / aspect).roundToInt()
         layout(width, height) {
             placeable.place(
                 x = (width - placeable.width) / 2,
