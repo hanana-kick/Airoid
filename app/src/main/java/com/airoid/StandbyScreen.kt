@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -181,7 +182,8 @@ fun DisplayOptionsLayer(
 ) {
     val scheme = MaterialTheme.colorScheme
     val scope = rememberCoroutineScope()
-    val fraction = remember { Animatable(0f) }
+    // 회전(액티비티 재생성) 후에도 시트 상태 유지
+    val fraction = rememberSaveable(saver = Animatable.Saver(0f)) { Animatable(0f) }
     var sheetHeightPx by remember { mutableStateOf(0) }
 
     Box(Modifier.fillMaxSize()) {

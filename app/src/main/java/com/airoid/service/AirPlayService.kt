@@ -223,14 +223,13 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     }
 
     /**
-     * 액티비티가 실제 미러링 표시 영역 크기를 보고한다(회전/리사이즈/옵션 변경 시).
-     * 렌더러 버퍼 해상도만 갱신하고, 광고 해상도는 항상 전체 디스플레이 크기를 유지한다 —
-     * 영역이 줄어들어도 송신기가 최대 해상도로 스트리밍하게 하기 위함이며,
-     * 영역 축소/확장은 서피스 크기 변화로 처리된다.
+     * 액티비티가 실제 미러링 표시 영역 크기를 보고한다(회전/스플릿뷰/윈도우모드 등 모든 리사이즈 시).
+     * 광고 해상도(SDP)와 렌더러 버퍼 해상도를 함께 갱신해, 앱 크기에 맞는 해상도를 송신기에 알린다.
      */
     fun setVideoAreaSize(w: Int, h: Int) {
         if (w <= 0 || h <= 0) return
         if (nativeHandle == 0L || _serverState.value != ServerState.RUNNING) return
+        NativeBridge.nativeSetDisplaySize(nativeHandle, w, h, displayMaxRefreshRate())
         videoRenderer.setResolution(w, h)
         _videoResolution.value = "${w}x${h}"
         _videoAspect.value = w.toFloat() / h

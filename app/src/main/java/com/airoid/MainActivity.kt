@@ -91,7 +91,17 @@ fun AiroidApp(service: AirPlayService?) {
     // 항상 전체 화면
     FullScreenEffect()
 
-    Box(Modifier.fillMaxSize()) {
+    // 앱 창 크기 변화(회전/스플릿뷰/윈도우모드 등 모든 리사이즈)를 서버에 보고 →
+    // 광고 해상도와 렌더러 해상도가 함께 따라간다
+    Box(
+        Modifier
+            .fillMaxSize()
+            .onSizeChanged { size ->
+                if (size.width > 0 && size.height > 0) {
+                    service?.setVideoAreaSize(size.width, size.height)
+                }
+            }
+    ) {
         DisplayOptionsLayer(
             mirroring = mirroring,
             onDisconnectMirroring = { service?.disconnectClients() },
@@ -108,8 +118,7 @@ fun AiroidApp(service: AirPlayService?) {
 /**
  * 미러링 영상을 표시하는 SurfaceView. 서버에 서피스를 넘겨 MediaCodec 렌더러가
  * 디코딩된 프레임을 여기로 그리게 한다.
- *
- * 표시 영역 크기가 바뀌면(회전/리사이즈) 서버에 보고해 렌더러 해상도가 자동으로 따라간다.
+ * 크기 보고는 루트 Box가 담당한다(회전/리사이즈 공용).
  */
 @Composable
 private fun MirrorView(service: AirPlayService) {
@@ -128,12 +137,6 @@ private fun MirrorView(service: AirPlayService) {
         factory = { ctx ->
             SurfaceView(ctx).apply { holder.addCallback(callback) }
         },
-        modifier = Modifier
-            .fillMaxSize()
-            .onSizeChanged { size ->
-                if (size.width > 0 && size.height > 0) {
-                    service.setVideoAreaSize(size.width, size.height)
-                }
-            }
+        modifier = Modifier.fillMaxSize()
     )
 }
