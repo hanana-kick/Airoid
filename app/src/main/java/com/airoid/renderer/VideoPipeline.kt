@@ -53,7 +53,7 @@ class VideoPipeline {
      * macOS는 미러링 모드 선택 전 검정 플레이스홀더를 보낼 수 있어,
      * 검정 프레임에서는 알리지 않고 실제 화면 콘텐츠가 나올 때 알린다. */
     @Volatile var onFirstFramePresented: (() -> Unit)? = null
-    private var contentNotified = false
+    @Volatile private var contentNotified = false
 
     fun start() = synchronized(lock) {
         if (running) return@synchronized
@@ -64,6 +64,10 @@ class VideoPipeline {
     }
 
     fun setDisplaySurface(surface: Surface?) = synchronized(lock) {
+        if (surface == null) {
+            // 세션 종료(표시 해제): 첫 콘텐츠 게이트를 재무장해 다음 세션에서 다시 열리게 한다.
+            contentNotified = false
+        }
         pendingDisplay = surface
         displayDirty = true
         lock.notifyAll()

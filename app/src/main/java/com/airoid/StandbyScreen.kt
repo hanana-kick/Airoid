@@ -31,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -78,7 +79,11 @@ import kotlinx.coroutines.launch
  * 박스가 화면 비율을 유지한 채 전체 화면으로 확장되며, 내용(코드/아이콘)이 먼저 사라진다.
  */
 @Composable
-fun StandbyScreen(code: String, transition: Float = 0f) {
+fun StandbyScreen(
+    code: String,
+    transition: Float = 0f,
+    onBoxWidthPx: (Int) -> Unit = {},
+) {
     val scheme = MaterialTheme.colorScheme
     val config = LocalConfiguration.current
     val density = LocalDensity.current
@@ -115,7 +120,10 @@ fun StandbyScreen(code: String, transition: Float = 0f) {
             border = BorderStroke(borderWidth, scheme.primary),
             modifier = Modifier
                 .align(Alignment.Center)
-                .onSizeChanged { boxWidthPx = it.width }
+                .onSizeChanged {
+                    boxWidthPx = it.width
+                    onBoxWidthPx(it.width)
+                }
                 .graphicsLayer {
                     scaleX = boxScale
                     scaleY = boxScale
@@ -296,10 +304,19 @@ fun DisplayOptionsLayer(
     val fraction = remember { Animatable(savedFraction) }
     var sheetHeightPx by remember { mutableStateOf(0) }
 
+    // 미러링 종료 시 시트가 자연스럽게(아래로) 닫힌다 — 다음 연결에서 열린 채 남지 않게 한다.
+    LaunchedEffect(mirroring) {
+        if (!mirroring && fraction.value > 0f) {
+            fraction.animateTo(0f)
+            savedFraction = 0f
+        }
+    }
+
     Box(Modifier.fillMaxSize()) {
         content()
 
-        if (mirroring) {
+        // 종료 애니메이션 동안(닫히는 중)에도 시트를 유지한다
+        if (mirroring || fraction.value > 0f) {
             // 상호작용 레이어: 스크림 + 탭 닫기 + 전체 스와이프로 열기/추적
             Box(
                 Modifier

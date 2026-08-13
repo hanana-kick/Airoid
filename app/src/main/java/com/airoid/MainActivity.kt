@@ -95,17 +95,21 @@ fun AiroidApp(service: AirPlayService?) {
     // 항상 전체 화면
     FullScreenEffect()
 
-    // 미러링 전환 애니메이션: 첫 프레임이 실제 화면에 표시된 뒤에만 재생된다.
-    // 연결 준비 단계(영상이 아직 안 들어온 상태)에서는 스탠바이를 그대로 유지한다.
+    // 미러링 전환 애니메이션: 연결 시엔 첫 프레임이 실제 화면에 표시된 뒤 재생되고,
+    // 종료 시엔 역방향으로 재생된다(영상이 박스 크기로 작아지며 스탠바이로 복귀).
     val mirrored = mirroring && service != null
     val transition = remember { Animatable(0f) }
     LaunchedEffect(mirrored, firstFrameShown) {
         if (mirrored && firstFrameShown) {
             transition.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
-        } else if (!mirrored) {
-            transition.snapTo(0f)
+        } else if (!mirrored && transition.value > 0f) {
+            transition.animateTo(0f, tween(700, easing = FastOutSlowInEasing))
         }
     }
+
+    // 박스 확장/축소 스케일 기준: 박스 폭(StandbyScreen이 보고)과 화면 폭
+    var boxWidthPx by remember { mutableStateOf(0) }
+    var screenWidthPx by remember { mutableStateOf(0) }
 
     // 앱 창 크기 변화(회전/스플릿뷰/윈도우모드 등 모든 리사이즈)를 서버에 보고 →
     // 광고 해상도와 렌더러 해상도가 함께 따라간다
@@ -113,6 +117,7 @@ fun AiroidApp(service: AirPlayService?) {
         Modifier
             .fillMaxSize()
             .onSizeChanged { size ->
+                screenWidthPx = size.width
                 if (size.width > 0 && size.height > 0) {
                     service?.setVideoAreaSize(size.width, size.height)
                 }
@@ -122,27 +127,41 @@ fun AiroidApp(service: AirPlayService?) {
             mirroring = mirroring,
             onDisconnectMirroring = { service?.disconnectClients() },
         ) {
-            // 미러 영상(하단): 전환 중 스탠바이가 위에서 사라지며 드러난다.
-            // "흐림 → 또렷" 느낌을 위해 살짝 확대된 상태에서 원래 크기로 수렴한다.
-            if (mirrored) {
+            // 미러 영상(하단): 연결/표시 중 + 종료 애니메이션 동안 유지된다.
+            val showVideo = (mirrored || transition.value > 0f) && service != null
+            if (showVideo) {
                 val t = transition.value
                 Box(
                     Modifier
                         .fillMaxSize()
                         .graphicsLayer {
-                            val focusScale = 1f + 0.04f * (1f - t)
-                            scaleX = focusScale
-                            scaleY = focusScale
+                            if (mirrored) {
+                                // 연결: "흐림 → 또렷" — 살짝 확대된 상태에서 원래 크기로
+                                val focusScale = 1f + 0.04f * (1f - t)
+                                scaleX = focusScale
+                                scaleY = focusScale
+                            } else {
+                                // 종료: 화면이 박스 크기로 작아지며 스탠바이로 복귀
+                                val target =
+                                    if (boxWidthPx > 0 && screenWidthPx > 0) {
+                                        screenWidthPx.toFloat() / boxWidthPx
+                                    } else 1f
+                                val boxScale = 1f + (target - 1f) * t // t: 1→0
+                                val shrink = boxScale / target
+                                scaleX = shrink
+                                scaleY = shrink
+                            }
                         }
                 ) {
                     MirrorView(service)
                 }
             }
-            // 스탠바이(상단): 대기 중 상시, 전환 중에는 페이드아웃 + 박스 확장
+            // 스탠바이(상단): 대기 중 상시, 전환 중에는 페이드아웃/인 + 박스 확장/축소
             if (!mirrored || transition.value < 1f) {
                 StandbyScreen(
                     code = pairingCode,
                     transition = transition.value,
+                    onBoxWidthPx = { boxWidthPx = it },
                 )
             }
         }
