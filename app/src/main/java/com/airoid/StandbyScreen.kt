@@ -220,7 +220,7 @@ fun DisplayOptionsLayer(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .widthIn(max = 480.dp)
+                    .widthIn(max = 400.dp)
                     .onSizeChanged { sheetHeightPx = it.height }
                     .offset { IntOffset(0, ((1f - fraction.value) * sheetHeightPx).roundToInt()) }
                     .navigationBarsPadding()
