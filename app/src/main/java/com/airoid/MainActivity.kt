@@ -112,17 +112,12 @@ fun AiroidApp(service: AirPlayService?) {
         }
     }
 
-    // 박스 확장/축소 스케일 기준: 박스 폭(StandbyScreen이 보고)과 화면 폭
-    var boxWidthPx by remember { mutableStateOf(0) }
-    var screenWidthPx by remember { mutableStateOf(0) }
-
     // 앱 창 크기 변화(회전/스플릿뷰/윈도우모드 등 모든 리사이즈)를 서버에 보고 →
     // 광고 해상도와 렌더러 해상도가 함께 따라간다
     Box(
         Modifier
             .fillMaxSize()
             .onSizeChanged { size ->
-                screenWidthPx = size.width
                 if (size.width > 0 && size.height > 0) {
                     service?.setVideoAreaSize(size.width, size.height)
                 }
@@ -133,32 +128,13 @@ fun AiroidApp(service: AirPlayService?) {
             onDisconnectMirroring = { service?.disconnectClients() },
         ) {
             // 미러 영상(하단): 연결/표시 중 + 종료 애니메이션 동안 유지된다.
+            // SurfaceView는 변환(graphicsLayer) 레이어 안에서 서피스 합성이 깨지므로
+            // 영상은 항상 plain full-screen으로 두고, 페이드는 위 검정 오버레이가 담당한다.
             val showVideo = (mirrored || transition.value > 0f) && service != null
             if (showVideo) {
                 val t = transition.value
                 val reveal = (t / 0.4f).coerceIn(0f, 1f)
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            // SurfaceView는 부모 레이어 alpha를 따르지 않으므로
-                            // alpha는 아래 검정 오버레이로 처리하고 여기선 scale만 쓴다.
-                            if (mirrored) {
-                                // 연결: "흐림 → 또렷" — 살짝 확대된 상태에서 원래 크기로
-                                val focusScale = 1f + 0.04f * (1f - reveal)
-                                scaleX = focusScale
-                                scaleY = focusScale
-                            } else {
-                                // 종료: 화면이 박스(현재 확장/축소 중인) 크기로 작아지며 복귀
-                                val target =
-                                    if (screenWidthPx > 0) {
-                                        (boxWidthPx.toFloat() / screenWidthPx).coerceIn(0f, 1f)
-                                    } else 1f
-                                scaleX = target
-                                scaleY = target
-                            }
-                        }
-                ) {
+                Box(Modifier.fillMaxSize()) {
                     MirrorView(service)
                 }
                 // 영상 페이드 인/아웃용 검정 오버레이 (일반 레이어라 alpha가 동작한다)
@@ -174,7 +150,6 @@ fun AiroidApp(service: AirPlayService?) {
                 StandbyScreen(
                     code = pairingCode,
                     transition = transition.value,
-                    onBoxWidthPx = { boxWidthPx = it },
                 )
             }
         }

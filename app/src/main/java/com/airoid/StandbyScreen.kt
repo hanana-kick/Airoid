@@ -83,7 +83,6 @@ import kotlinx.coroutines.launch
 fun StandbyScreen(
     code: String,
     transition: Float = 0f,
-    onBoxWidthPx: (Int) -> Unit = {},
 ) {
     val scheme = MaterialTheme.colorScheme
     val config = LocalConfiguration.current
@@ -104,7 +103,6 @@ fun StandbyScreen(
     // 내용(아이콘+코드)이 함께 스케일 + 페이드된다.
     val reveal = (transition / 0.4f).coerceIn(0f, 1f)
     val growth = ((transition - 0.4f) / 0.6f).coerceIn(0f, 1f)
-    var boxWidthPx by remember { mutableStateOf(0) }
     val contentAlpha = 1f - growth * growth // 내용은 배경보다 먼저 사라진다
 
     Box(Modifier.fillMaxSize()) {
@@ -115,10 +113,6 @@ fun StandbyScreen(
             growth = growth,
             modifier = Modifier
                 .align(Alignment.Center)
-                .onSizeChanged {
-                    boxWidthPx = it.width
-                    onBoxWidthPx(it.width)
-                }
                 .border(borderWidth, scheme.primary, RoundedCornerShape(cornerRadius)),
         ) {
             Column(
