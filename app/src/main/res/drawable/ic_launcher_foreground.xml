@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  안드로이드 머리(초록 돔 + 안테나) 안에 AirPlay(화면 미러링) 아이콘이 크게 중앙에 있는
-  어댑티브 아이콘 포그라운드. 전체가 벡터라 마스크/크기 변화(다이나믹 아이콘)에 대응한다.
+  안드로이드 로고 공식 비율의 머리(곡선 상단 + 둥근 하단 모서리 + 얇은 안테나) 안에
+  AirPlay(화면 미러링) 아이콘이 크게 중앙에 있는 어댑티브 아이콘 포그라운드.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -12,22 +12,22 @@
     <!-- 왼쪽 안테나 -->
     <path
         android:fillColor="#3DDC84"
-        android:pathData="M38,20 h4 a2,2 0 0 1 2,2 v10 a2,2 0 0 1 -2,2 h-4 a2,2 0 0 1 -2,-2 v-10 a2,2 0 0 1 2,-2 z" />
+        android:pathData="M42,20 h2 a2,2 0 0 1 2,2 v10 a2,2 0 0 1 -2,2 h-2 a2,2 0 0 1 -2,-2 v-10 a2,2 0 0 1 2,-2 z" />
     <!-- 오른쪽 안테나 -->
     <path
         android:fillColor="#3DDC84"
-        android:pathData="M66,20 h4 a2,2 0 0 1 2,2 v10 a2,2 0 0 1 -2,2 h-4 a2,2 0 0 1 -2,-2 v-10 a2,2 0 0 1 2,-2 z" />
-    <!-- 안드로이드 머리(돔) -->
+        android:pathData="M62,20 h2 a2,2 0 0 1 2,2 v10 a2,2 0 0 1 -2,2 h-2 a2,2 0 0 1 -2,-2 v-10 a2,2 0 0 1 2,-2 z" />
+    <!-- 안드로이드 머리 (공식 로고 비율: 곡선 상단, 둥근 하단) -->
     <path
         android:fillColor="#3DDC84"
-        android:pathData="M22,84 L22,50 A32,32 0 0 1 86,50 L86,84 Z" />
+        android:pathData="M54,18 C36,18 22,32 22,50 L22,66 C22,72 26,76 32,76 L76,76 C82,76 86,72 86,66 L86,50 C86,32 72,18 54,18 Z" />
     <!-- AirPlay TV 외곽선 (evenOdd로 내부 구멍) -->
     <path
         android:fillColor="#FFFFFF"
         android:fillType="evenOdd"
-        android:pathData="M40,42 h26 a5,5 0 0 1 5,5 v18 a5,5 0 0 1 -5,5 h-26 a5,5 0 0 1 -5,-5 v-18 a5,5 0 0 1 5,-5 z M43,46 h20 a3,3 0 0 1 3,3 v14 a3,3 0 0 1 -3,3 h-20 a3,3 0 0 1 -3,-3 v-14 a3,3 0 0 1 3,-3 z" />
+        android:pathData="M41,42 h26 a5,5 0 0 1 5,5 v16 a5,5 0 0 1 -5,5 h-26 a5,5 0 0 1 -5,-5 v-16 a5,5 0 0 1 5,-5 z M42,45 h22 a3,3 0 0 1 3,3 v14 a3,3 0 0 1 -3,3 h-22 a3,3 0 0 1 -3,-3 v-14 a3,3 0 0 1 3,-3 z" />
     <!-- AirPlay 삼각형 (위를 향함) -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,70 L62,79 L46,79 Z" />
+        android:pathData="M54,68 L62,75 L46,75 Z" />
 </vector>
