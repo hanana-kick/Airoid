@@ -36,6 +36,7 @@ class VideoPipeline {
     private var aPos = 0
     private var aTex = 0
     private var uTexMatrix = 0
+    private var uScale = 0
     private val texMatrix = FloatArray(16)
     private var hasFrame = false
 
@@ -153,6 +154,12 @@ class VideoPipeline {
         GLES20.glViewport(0, 0, winW, winH)
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
         GLES20.glUseProgram(program)
+        // 소스 비율 보존(fit): 창 비율과 다르면 레터박스 — 회전/리사이즈에도 찌그러지지 않음
+        val srcAspect = if (videoH > 0) videoW.toFloat() / videoH else 1f
+        val winAspect = if (winH > 0) winW.toFloat() / winH else 1f
+        val sx = if (srcAspect > winAspect) 1f else srcAspect / winAspect
+        val sy = if (srcAspect > winAspect) winAspect / srcAspect else 1f
+        GLES20.glUniform2f(uScale, sx, sy)
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, oesTex)
         GLES20.glUniformMatrix4fv(uTexMatrix, 1, false, texMatrix, 0)
@@ -199,6 +206,7 @@ class VideoPipeline {
         aPos = GLES20.glGetAttribLocation(program, "aPos")
         aTex = GLES20.glGetAttribLocation(program, "aTex")
         uTexMatrix = GLES20.glGetUniformLocation(program, "uTexMatrix")
+        uScale = GLES20.glGetUniformLocation(program, "uScale")
         val tex = IntArray(1)
         GLES20.glGenTextures(1, tex, 0)
         oesTex = tex[0]
@@ -268,9 +276,10 @@ class VideoPipeline {
             "attribute vec2 aPos;\n" +
             "attribute vec2 aTex;\n" +
             "uniform mat4 uTexMatrix;\n" +
+            "uniform vec2 uScale;\n" +
             "varying vec2 vTex;\n" +
             "void main() {\n" +
-            "  gl_Position = vec4(aPos, 0.0, 1.0);\n" +
+            "  gl_Position = vec4(aPos * uScale, 0.0, 1.0);\n" +
             "  vTex = (uTexMatrix * vec4(aTex, 0.0, 1.0)).xy;\n" +
             "}\n"
 

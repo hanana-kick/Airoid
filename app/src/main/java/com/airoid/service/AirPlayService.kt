@@ -105,17 +105,18 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_START_SERVER) {
             promoteToForeground()
-            // 연결 대기마다 새 코드: 대기 화면 표시와 AirPlay 기기명이 함께 갱신된다
-            _pairingCode.value = PairingCode.random()
-            startServer(PairingCode.deviceName(_pairingCode.value))
+            startServer()
             if (_serverState.value != ServerState.RUNNING) stopSelf(startId)
         }
         return START_NOT_STICKY
     }
 
-    fun startServer(name: String) {
+    fun startServer() {
         if (_serverState.value == ServerState.RUNNING) return
-        val effectiveName = name.ifBlank { "Airoid" }
+        // 연결 대기(서버 시작) 시에만 새 코드 생성 — 재실행 중 서버가 살아 있으면 코드 유지
+        val code = PairingCode.random()
+        _pairingCode.value = code
+        val effectiveName = PairingCode.deviceName(code)
 
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "airplay:server").apply { acquire() }
@@ -223,14 +224,14 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     }
 
     /**
-     * 액티비티가 실제 미러링 표시 영역 크기를 보고한다(회전/스플릿뷰/윈도우모드 등 모든 리사이즈 시).
-     * 광고 해상도(SDP)와 렌더러 버퍼 해상도를 함께 갱신해, 앱 크기에 맞는 해상도를 송신기에 알린다.
+     * 액티비티가 실제 표시 영역 크기를 보고한다(회전/스플릿뷰/윈도우모드 등 모든 리사이즈 시).
+     * 광고 해상도(SDP)만 갱신한다 — 디코더 버퍼는 소스 해상도를 유지하고,
+     * 표시는 GL이 비율을 보존(fit)하므로 회전/리사이즈에도 영상이 찌그러지지 않는다.
      */
     fun setVideoAreaSize(w: Int, h: Int) {
         if (w <= 0 || h <= 0) return
         if (nativeHandle == 0L || _serverState.value != ServerState.RUNNING) return
         NativeBridge.nativeSetDisplaySize(nativeHandle, w, h, displayMaxRefreshRate())
-        videoRenderer.setResolution(w, h)
         _videoResolution.value = "${w}x${h}"
         _videoAspect.value = w.toFloat() / h
     }
