@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- AirPlay-style glyph: a screen with a triangle "casting" into it -->
+    <group
+        android:scaleX="0.55"
+        android:scaleY="0.55"
+        android:translateX="24"
+        android:translateY="24">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M30,24 L78,24 L78,64 L46,64 L46,74 L62,74 L62,84 L34,84 L34,74 L30,74 Z" />
+        <path
+            android:fillColor="#1B2A41"
+            android:pathData="M30,30 L30,58 L78,58 L78,30 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M54,44 L38,58 L70,58 Z" />
+    </group>
+</vector>
