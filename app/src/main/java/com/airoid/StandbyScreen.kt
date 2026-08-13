@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -42,6 +41,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -51,12 +51,15 @@ import androidx.core.view.WindowInsetsControllerCompat
 
 /**
  * 미러링 대기 화면. 검정 배경을 사용한다.
- * Airoid 아래에 AirPlay 아이콘 + 로딩 인디케이터가 있는 필(primaryContainer)을 표시한다.
- * 페어링 코드는 표시하지 않는다. 연결이 시작되면(connecting) 필 아래에 "연결 중…"이 나타난다.
+ * Airoid 아래에 AirPlay 기기 이름과 같은 페어링 코드를 표시한다:
+ * 코드 필(primaryContainer)에 SF "airplay.video" 아이콘과 코드가 함께 들어간다.
+ * 로딩 스피너/대기 텍스트는 표시하지 않는다. 연결이 시작되면(connecting) 필 아래에 "연결 중…"이 나타난다.
  */
 @Composable
 fun StandbyScreen(connecting: Boolean) {
     val scheme = MaterialTheme.colorScheme
+    val context = LocalContext.current.applicationContext
+    val code = remember { PairingCode.get(context) }
 
     Box(
         Modifier
@@ -82,7 +85,7 @@ fun StandbyScreen(connecting: Boolean) {
                 modifier = Modifier.padding(top = 16.dp),
             ) {
                 Row(
-                    Modifier.padding(horizontal = 28.dp, vertical = 16.dp),
+                    Modifier.padding(horizontal = 28.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
@@ -91,12 +94,12 @@ fun StandbyScreen(connecting: Boolean) {
                         tint = scheme.onPrimaryContainer,
                         modifier = Modifier.size(24.dp),
                     )
-                    CircularProgressIndicator(
-                        modifier = Modifier
-                            .padding(start = 14.dp)
-                            .size(24.dp),
-                        color = scheme.primary,
-                        strokeWidth = 2.5.dp,
+                    Text(
+                        text = code,
+                        color = scheme.onPrimaryContainer,
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(start = 10.dp)
                     )
                 }
             }
