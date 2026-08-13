@@ -49,14 +49,16 @@ class VideoPipeline {
     @Volatile private var videoW = 0
     @Volatile private var videoH = 0
 
-    /** 첫 번째 프레임이 실제 화면(EGL window)에 표시되었을 때 한 번 호출된다. */
+    /** 첫 번째 실제 콘텐츠(비검정) 프레임이 화면에 표시되었을 때 한 번 호출된다.
+     * macOS는 미러링 모드 선택 전 검정 플레이스홀더를 보낼 수 있어,
+     * 검정 프레임에서는 알리지 않고 실제 화면 콘텐츠가 나올 때 알린다. */
     @Volatile var onFirstFramePresented: (() -> Unit)? = null
-    private var presentedFrames = 0L
+    private var contentNotified = false
 
     fun start() = synchronized(lock) {
         if (running) return@synchronized
         running = true
-        presentedFrames = 0
+        contentNotified = false
         thread = Thread({ _loop() }, "VideoPipeline").also { it.start() }
         while (inputSurface == null && running) lock.wait()
     }
@@ -175,9 +177,34 @@ class VideoPipeline {
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
         GLES20.glDisableVertexAttribArray(aPos)
         GLES20.glDisableVertexAttribArray(aTex)
+        // 첫 콘텐츠 게이트: swap 전에 중앙 영역을 읽어 실제(비검정) 콘텐츠인지 판별
+        if (onFirstFramePresented != null && !contentNotified && _sampleHasContent()) {
+            contentNotified = true
+            onFirstFramePresented?.invoke()
+        }
         EGL14.eglSwapBuffers(eglDisplay, window)
-        presentedFrames++
-        if (presentedFrames == 1L) onFirstFramePresented?.invoke()
+    }
+
+    /** 화면 중앙 64x64 픽셀의 최대 채널값으로 실제 콘텐츠(비검정)인지 판별. */
+    private fun _sampleHasContent(): Boolean {
+        if (window == EGL14.EGL_NO_SURFACE || winW <= 0 || winH <= 0) return false
+        val size = 64
+        val x = (winW - size) / 2
+        val y = (winH - size) / 2
+        val buf = ByteBuffer.allocateDirect(size * size * 4)
+        GLES20.glReadPixels(x, y, size, size, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf)
+        buf.rewind()
+        var maxChannel = 0
+        repeat(size * size) {
+            val r = buf.get().toInt() and 0xFF
+            val g = buf.get().toInt() and 0xFF
+            val b = buf.get().toInt() and 0xFF
+            buf.get() // alpha
+            val m = maxOf(r, g, b)
+            if (m > maxChannel) maxChannel = m
+            if (maxChannel > 24) return true
+        }
+        return false
     }
 
     private fun _query(what: Int): Int {
