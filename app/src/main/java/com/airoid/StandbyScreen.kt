@@ -2,6 +2,19 @@ package com.airoid
 
 import android.app.Activity
 import android.view.WindowInsets as AndroidWindowInsets
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -9,6 +22,7 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -16,6 +30,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -28,25 +43,53 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 
 /**
  * 미러링 대기 화면. 검정 배경을 사용한다.
- * Airoid 아래에 AirPlay 기기 이름과 같은 페어링 코드(한글 단어 3~5자)를 표시한다.
- * 텍스트 색은 M3 토큰에서 가져온다(onBackground / primary / onSurfaceVariant).
+ * Airoid 아래에 AirPlay 기기 이름과 같은 페어링 코드를 익스프레시브 스타일로 표시한다:
+ * 코드 필(primaryContainer)의 코너 반경이 끊임없이 모프되고(모핑 셰이프), 스프링 스케일로 브리딩한다.
+ * 연결이 시작되면(connecting) 필이 squircle로 모프되고 진행 인디케이터가 나타난다.
+ * 색은 M3 토큰에서 가져온다(onBackground / primaryContainer / onSurfaceVariant).
  */
 @Composable
-fun StandbyScreen() {
+fun StandbyScreen(connecting: Boolean) {
     val scheme = MaterialTheme.colorScheme
     val context = LocalContext.current.applicationContext
     val code = remember { PairingCode.get(context) }
+
+    // 익스프레시브 브리딩: 코너 반경 모프(28↔56dp) + 미세 스케일
+    val breathing by rememberInfiniteTransition(label = "standbyBreath").animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "breath",
+    )
+    val corner = lerp(28.dp, 56.dp, breathing)
+
+    // 연결 시작 시 스프링 버프 (익스프레시브 스프링 모션)
+    val connectScale by animateFloatAsState(
+        targetValue = if (connecting) 1.08f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow,
+        ),
+        label = "connectScale",
+    )
+    val scale = (1f + breathing * 0.04f) * connectScale
+
     Box(
         Modifier
             .fillMaxSize()
@@ -65,19 +108,55 @@ fun StandbyScreen() {
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
-            Text(
-                text = code,
-                color = scheme.primary,
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 6.dp)
-            )
-            Text(
-                text = stringResource(R.string.standby_waiting),
-                color = scheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(top = 28.dp)
-            )
+            Surface(
+                shape = RoundedCornerShape(corner),
+                color = scheme.primaryContainer,
+                modifier = Modifier
+                    .padding(top = 16.dp)
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    },
+            ) {
+                Text(
+                    text = code,
+                    color = scheme.onPrimaryContainer,
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 28.dp, vertical = 14.dp)
+                )
+            }
+            AnimatedContent(
+                targetState = connecting,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "status",
+            ) { isConnecting ->
+                if (isConnecting) {
+                    Row(
+                        Modifier.padding(top = 28.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = scheme.primary,
+                            strokeWidth = 2.5.dp,
+                        )
+                        Text(
+                            text = stringResource(R.string.standby_connecting),
+                            color = scheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(start = 10.dp)
+                        )
+                    }
+                } else {
+                    Text(
+                        text = stringResource(R.string.standby_waiting),
+                        color = scheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(top = 28.dp)
+                    )
+                }
+            }
         }
     }
 }
