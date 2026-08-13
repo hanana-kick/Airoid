@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.viewinterop.AndroidView
 import com.airoid.service.AirPlayService
+import kotlinx.coroutines.delay
 
 /**
  * Airoid — AirPlay 수신기.
@@ -101,6 +102,8 @@ fun AiroidApp(service: AirPlayService?) {
     val transition = remember { Animatable(0f) }
     LaunchedEffect(mirrored, firstFrameShown) {
         if (mirrored && firstFrameShown) {
+            // 첫 프레임이 화면에 표시된 뒤 영상이 자리 잡을 시간을 주고 애니메이션 시작
+            delay(250)
             transition.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
         } else if (!mirrored && transition.value > 0f) {
             transition.animateTo(0f, tween(700, easing = FastOutSlowInEasing))

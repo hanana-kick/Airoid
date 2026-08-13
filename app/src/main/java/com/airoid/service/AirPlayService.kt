@@ -108,7 +108,10 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
         createNotificationChannel()
         log("Service created")
         // 첫 프레임이 실제 화면에 표시되면 전환 애니메이션 게이트를 연다.
-        videoRenderer.onFirstFramePresented = { _firstFrameShown.value = true }
+        videoRenderer.onFirstFramePresented = {
+            Log.i(TAG, "First video frame displayed (gate opened)")
+            _firstFrameShown.value = true
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
