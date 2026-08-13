@@ -34,7 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -182,8 +182,9 @@ fun DisplayOptionsLayer(
 ) {
     val scheme = MaterialTheme.colorScheme
     val scope = rememberCoroutineScope()
-    // 회전(액티비티 재생성) 후에도 시트 상태 유지
-    val fraction = rememberSaveable(saver = Animatable.Saver(0f)) { Animatable(0f) }
+    // 회전(액티비티 재생성) 후에도 시트 상태 유지: 값은 저장 가능 상태로 보관
+    var savedFraction by rememberSaveable { mutableFloatStateOf(0f) }
+    val fraction = remember { Animatable(savedFraction) }
     var sheetHeightPx by remember { mutableStateOf(0) }
 
     Box(Modifier.fillMaxSize()) {
@@ -196,7 +197,12 @@ fun DisplayOptionsLayer(
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.5f * fraction.value))
                     .pointerInput(Unit) {
-                        detectTapGestures { scope.launch { fraction.animateTo(0f) } }
+                        detectTapGestures {
+                            scope.launch {
+                                fraction.animateTo(0f)
+                                savedFraction = 0f
+                            }
+                        }
                     }
                     .pointerInput(Unit) {
                         detectVerticalDragGestures(
@@ -205,15 +211,20 @@ fun DisplayOptionsLayer(
                                 val delta = -dragAmount / sheetHeightPx.coerceAtLeast(1).toFloat()
                                 scope.launch {
                                     fraction.snapTo((fraction.value + delta).coerceIn(0f, 1f))
+                                    savedFraction = fraction.value
                                 }
                             },
                             onDragEnd = {
                                 scope.launch {
                                     fraction.animateTo(if (fraction.value > 0.35f) 1f else 0f)
+                                    savedFraction = fraction.value
                                 }
                             },
                             onDragCancel = {
-                                scope.launch { fraction.animateTo(0f) }
+                                scope.launch {
+                                    fraction.animateTo(0f)
+                                    savedFraction = 0f
+                                }
                             },
                         )
                     }
@@ -239,15 +250,20 @@ fun DisplayOptionsLayer(
                                     val delta = -dragAmount / sheetHeightPx.coerceAtLeast(1).toFloat()
                                     scope.launch {
                                         fraction.snapTo((fraction.value + delta).coerceIn(0f, 1f))
+                                        savedFraction = fraction.value
                                     }
                                 },
                                 onDragEnd = {
                                     scope.launch {
                                         fraction.animateTo(if (fraction.value > 0.35f) 1f else 0f)
+                                        savedFraction = fraction.value
                                     }
                                 },
                                 onDragCancel = {
-                                    scope.launch { fraction.animateTo(1f) }
+                                    scope.launch {
+                                        fraction.animateTo(1f)
+                                        savedFraction = 1f
+                                    }
                                 },
                             )
                         },
