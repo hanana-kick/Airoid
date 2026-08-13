@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  안드로이드 머리(작은 초록 원 + 안테나 두 개) 안에 AirPlay(화면 미러링) 아이콘이
+  안드로이드 머리(반원보다 얕은 원호 캡 + 안테나 두 개) 안에 AirPlay(화면 미러링) 아이콘이
   들어 있는 어댑티브 아이콘 포그라운드. 전체가 벡터라 마스크/크기 변화에 대응한다.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
@@ -12,22 +12,22 @@
     <!-- 왼쪽 안테나 -->
     <path
         android:fillColor="#3DDC84"
-        android:pathData="M42,8 h2 a2,2 0 0 1 2,2 v10 a2,2 0 0 1 -2,2 h-2 a2,2 0 0 1 -2,-2 v-10 a2,2 0 0 1 2,-2 z" />
+        android:pathData="M42,4 h2 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-2 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z" />
     <!-- 오른쪽 안테나 -->
     <path
         android:fillColor="#3DDC84"
-        android:pathData="M62,8 h2 a2,2 0 0 1 2,2 v10 a2,2 0 0 1 -2,2 h-2 a2,2 0 0 1 -2,-2 v-10 a2,2 0 0 1 2,-2 z" />
-    <!-- 안드로이드 머리 (작은 원) -->
+        android:pathData="M62,4 h2 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-2 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z" />
+    <!-- 안드로이드 머리 (반원보다 얕은 원호 캡: 반지름 32, 높이 28 < 32) -->
     <path
         android:fillColor="#3DDC84"
-        android:pathData="M80,50 A26,26 0 1 0 28,50 A26,26 0 1 0 80,50 Z" />
+        android:pathData="M22.3,44 A32,32 0 0 1 85.7,44 L22.3,44 Z" />
     <!-- AirPlay TV 외곽선 (evenOdd로 내부 구멍) -->
     <path
         android:fillColor="#FFFFFF"
         android:fillType="evenOdd"
-        android:pathData="M44,42 h20 a4,4 0 0 1 4,4 v16 a4,4 0 0 1 -4,4 h-20 a4,4 0 0 1 -4,-4 v-16 a4,4 0 0 1 4,-4 z M45.5,45 h17 a2.5,2.5 0 0 1 2.5,2.5 v13 a2.5,2.5 0 0 1 -2.5,2.5 h-17 a2.5,2.5 0 0 1 -2.5,-2.5 v-13 a2.5,2.5 0 0 1 2.5,-2.5 z" />
+        android:pathData="M40,24 h28 a4,4 0 0 1 4,4 v8 a4,4 0 0 1 -4,4 h-28 a4,4 0 0 1 -4,-4 v-8 a4,4 0 0 1 4,-4 z M41.5,27 h25 a2.5,2.5 0 0 1 2.5,2.5 v5 a2.5,2.5 0 0 1 -2.5,2.5 h-25 a2.5,2.5 0 0 1 -2.5,-2.5 v-5 a2.5,2.5 0 0 1 2.5,-2.5 z" />
     <!-- AirPlay 삼각형 (위를 향함) -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,66 L61,73 L47,73 Z" />
+        android:pathData="M54,40 L62,44 L46,44 Z" />
 </vector>
