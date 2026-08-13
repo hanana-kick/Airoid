@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.PathBuilder
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -142,10 +143,10 @@ fun StandbyScreen(connecting: Boolean) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        imageVector = AirPlayIcon,
+                        imageVector = MirrorIcon,
                         contentDescription = null,
                         tint = scheme.onPrimaryContainer,
-                        modifier = Modifier.size(22.dp),
+                        modifier = Modifier.size(24.dp),
                     )
                     Text(
                         text = code,
@@ -202,38 +203,40 @@ fun StandbyScreen(connecting: Boolean) {
     }
 }
 
-/** AirPlay 심볼: 아래쪽 삼각형 + TV 막대 + 받침대. */
-private val AirPlayIcon: ImageVector = ImageVector.Builder(
-    name = "AirPlay",
+/**
+ * 화면 미러링(에어플레이) 아이콘 — SF Symbol "rectangle.on.rectangle" 참조:
+ * 대각선으로 겹친 둥근 모서리의 두 사각형 (뒤쪽은 좌상, 앞쪽은 우하).
+ */
+private val MirrorIcon: ImageVector = ImageVector.Builder(
+    name = "ScreenMirror",
     defaultWidth = 24.dp,
     defaultHeight = 24.dp,
     viewportWidth = 24f,
     viewportHeight = 24f,
 ).apply {
-    // 재생 화살표(삼각형)
+    // 뒤 사각형 (좌상)
     path(fill = SolidColor(Color.Black)) {
-        moveTo(12f, 4f)
-        lineTo(20.5f, 16.5f)
-        lineTo(3.5f, 16.5f)
-        close()
+        roundedRect(3f, 3f, 17f, 17f, 2.5f)
     }
-    // TV 본체
+    // 앞 사각형 (우하, 겹침)
     path(fill = SolidColor(Color.Black)) {
-        moveTo(2f, 17f)
-        lineTo(22f, 17f)
-        lineTo(22f, 20f)
-        lineTo(2f, 20f)
-        close()
-    }
-    // 받침대
-    path(fill = SolidColor(Color.Black)) {
-        moveTo(11f, 20f)
-        lineTo(13f, 20f)
-        lineTo(13f, 22.5f)
-        lineTo(11f, 22.5f)
-        close()
+        roundedRect(7f, 7f, 21f, 21f, 2.5f)
     }
 }.build()
+
+/** 시계 방향 둥근 사각형 경로 (SF 심볼 스타일 코너). */
+private fun PathBuilder.roundedRect(x0: Float, y0: Float, x1: Float, y1: Float, r: Float) {
+    moveTo(x0 + r, y0)
+    lineTo(x1 - r, y0)
+    arcTo(r, r, 0f, false, true, x1, y0 + r)
+    lineTo(x1, y1 - r)
+    arcTo(r, r, 0f, false, true, x1 - r, y1)
+    lineTo(x0 + r, y1)
+    arcTo(r, r, 0f, false, true, x0, y1 - r)
+    lineTo(x0, y0 + r)
+    arcTo(r, r, 0f, false, true, x0 + r, y0)
+    close()
+}
 
 /**
  * 미러링 영상 위에 올라가는 공용 레이어.
