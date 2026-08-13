@@ -28,9 +28,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -43,7 +45,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -57,9 +62,10 @@ import androidx.core.view.WindowInsetsControllerCompat
 /**
  * 미러링 대기 화면. 검정 배경을 사용한다.
  * Airoid 아래에 AirPlay 기기 이름과 같은 페어링 코드를 익스프레시브 스타일로 표시한다:
- * 코드 필(primaryContainer)의 코너 반경이 끊임없이 모프되고(모핑 셰이프), 스프링 스케일로 브리딩한다.
- * 연결이 시작되면(connecting) 필이 squircle로 모프되고 진행 인디케이터가 나타난다.
- * 색은 M3 토큰에서 가져온다(onBackground / primaryContainer / onSurfaceVariant).
+ * 코드 필(primaryContainer)의 코너 반경이 모프(모핑 셰이프)되고, 코드 옆에 AirPlay 아이콘이 있어
+ * "이 기기로 에어플레이를 연결하라"는 의도를 보여준다.
+ * "미러링 대기 중" 텍스트는 점(···) 애니메이션으로 대기 상태를 표현한다.
+ * 연결이 시작되면(connecting) 필이 스프링으로 커지고 진행 인디케이터가 나타난다.
  */
 @Composable
 fun StandbyScreen(connecting: Boolean) {
@@ -67,7 +73,7 @@ fun StandbyScreen(connecting: Boolean) {
     val context = LocalContext.current.applicationContext
     val code = remember { PairingCode.get(context) }
 
-    // 익스프레시브 브리딩: 코너 반경 모프(28↔56dp) + 미세 스케일
+    // 익스프레시브 셰이프 모프: 코너 반경 28↔56dp (스케일 펄스 없음)
     val breathing by rememberInfiniteTransition(label = "standbyBreath").animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -79,7 +85,7 @@ fun StandbyScreen(connecting: Boolean) {
     )
     val corner = lerp(28.dp, 56.dp, breathing)
 
-    // 연결 시작 시 스프링 버프 (익스프레시브 스프링 모션)
+    // 연결 시작 시 스프링 버프
     val connectScale by animateFloatAsState(
         targetValue = if (connecting) 1.08f else 1f,
         animationSpec = spring(
@@ -88,7 +94,20 @@ fun StandbyScreen(connecting: Boolean) {
         ),
         label = "connectScale",
     )
-    val scale = (1f + breathing * 0.04f) * connectScale
+
+    // "미러링 대기 중" 점(···) 애니메이션
+    val dotTransition = rememberInfiniteTransition(label = "waitingDots")
+    val dotAlphas = List(3) { i ->
+        dotTransition.animateFloat(
+            initialValue = 0.25f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 500, delayMillis = i * 250),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "dot$i",
+        )
+    }
 
     Box(
         Modifier
@@ -114,17 +133,28 @@ fun StandbyScreen(connecting: Boolean) {
                 modifier = Modifier
                     .padding(top = 16.dp)
                     .graphicsLayer {
-                        scaleX = scale
-                        scaleY = scale
+                        scaleX = connectScale
+                        scaleY = connectScale
                     },
             ) {
-                Text(
-                    text = code,
-                    color = scheme.onPrimaryContainer,
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(horizontal = 28.dp, vertical = 14.dp)
-                )
+                Row(
+                    Modifier.padding(horizontal = 28.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = AirPlayIcon,
+                        contentDescription = null,
+                        tint = scheme.onPrimaryContainer,
+                        modifier = Modifier.size(22.dp),
+                    )
+                    Text(
+                        text = code,
+                        color = scheme.onPrimaryContainer,
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(start = 10.dp)
+                    )
+                }
             }
             AnimatedContent(
                 targetState = connecting,
@@ -149,17 +179,61 @@ fun StandbyScreen(connecting: Boolean) {
                         )
                     }
                 } else {
-                    Text(
-                        text = stringResource(R.string.standby_waiting),
-                        color = scheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(top = 28.dp)
-                    )
+                    Row(
+                        Modifier.padding(top = 28.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.standby_waiting),
+                            color = scheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        dotAlphas.forEach { d ->
+                            Text(
+                                text = "·",
+                                color = scheme.onSurfaceVariant.copy(alpha = d.value),
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        }
+                    }
                 }
             }
         }
     }
 }
+
+/** AirPlay 심볼: 아래쪽 삼각형 + TV 막대 + 받침대. */
+private val AirPlayIcon: ImageVector = ImageVector.Builder(
+    name = "AirPlay",
+    defaultWidth = 24.dp,
+    defaultHeight = 24.dp,
+    viewportWidth = 24f,
+    viewportHeight = 24f,
+).apply {
+    // 재생 화살표(삼각형)
+    path(fill = SolidColor(Color.Black)) {
+        moveTo(12f, 4f)
+        lineTo(20.5f, 16.5f)
+        lineTo(3.5f, 16.5f)
+        close()
+    }
+    // TV 본체
+    path(fill = SolidColor(Color.Black)) {
+        moveTo(2f, 17f)
+        lineTo(22f, 17f)
+        lineTo(22f, 20f)
+        lineTo(2f, 20f)
+        close()
+    }
+    // 받침대
+    path(fill = SolidColor(Color.Black)) {
+        moveTo(11f, 20f)
+        lineTo(13f, 20f)
+        lineTo(13f, 22.5f)
+        lineTo(11f, 22.5f)
+        close()
+    }
+}.build()
 
 /**
  * 미러링 영상 위에 올라가는 공용 레이어.
@@ -226,6 +300,7 @@ private fun OptionsOverlay(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
+                .widthIn(max = 640.dp)
                 .navigationBarsPadding()
                 .pointerInput(onDismiss) {
                     var total = 0f
