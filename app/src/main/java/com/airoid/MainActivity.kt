@@ -11,9 +11,13 @@ import android.view.SurfaceView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -21,6 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -91,6 +96,18 @@ fun AiroidApp(service: AirPlayService?) {
     // 항상 전체 화면
     FullScreenEffect()
 
+    // 미러링 전환 애니메이션: 연결 시 스탠바이가 페이드아웃되고
+    // 박스가 화면 비율을 유지하며 전체 화면으로 확장되어 미러 영상만 남는다.
+    val mirrored = mirroring && service != null
+    val transition = remember { Animatable(0f) }
+    LaunchedEffect(mirrored) {
+        if (mirrored) {
+            transition.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
+        } else {
+            transition.snapTo(0f)
+        }
+    }
+
     // 앱 창 크기 변화(회전/스플릿뷰/윈도우모드 등 모든 리사이즈)를 서버에 보고 →
     // 광고 해상도와 렌더러 해상도가 함께 따라간다
     Box(
@@ -106,10 +123,29 @@ fun AiroidApp(service: AirPlayService?) {
             mirroring = mirroring,
             onDisconnectMirroring = { service?.disconnectClients() },
         ) {
-            if (mirroring && service != null) {
-                MirrorView(service)
-            } else {
-                StandbyScreen(connecting = connecting, code = pairingCode)
+            // 미러 영상(하단): 전환 중 스탠바이가 위에서 사라지며 드러난다.
+            // "흐림 → 또렷" 느낌을 위해 살짝 확대된 상태에서 원래 크기로 수렴한다.
+            if (mirrored) {
+                val t = transition.value
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            val focusScale = 1f + 0.04f * (1f - t)
+                            scaleX = focusScale
+                            scaleY = focusScale
+                        }
+                ) {
+                    MirrorView(service)
+                }
+            }
+            // 스탠바이(상단): 대기 중 상시, 전환 중에는 페이드아웃 + 박스 확장
+            if (!mirrored || transition.value < 1f) {
+                StandbyScreen(
+                    connecting = connecting,
+                    code = pairingCode,
+                    transition = transition.value,
+                )
             }
         }
     }

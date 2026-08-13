@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.input.pointer.pointerInput
@@ -80,9 +81,10 @@ import kotlinx.coroutines.launch
  * 코드는 서버가 연결 대기를 만들 때마다 새로 생성되어 전달된다(영속화하지 않음).
  */
 @Composable
-fun StandbyScreen(connecting: Boolean, code: String) {
+fun StandbyScreen(connecting: Boolean, code: String, transition: Float = 0f) {
     val scheme = MaterialTheme.colorScheme
     val config = LocalConfiguration.current
+    val density = LocalDensity.current
     // 기기 화면 비율: 세로일 때 0.755 (1848:2448), 회전 시 자동 반영
     val screenAspect = config.screenWidthDp.toFloat() / config.screenHeightDp.toFloat()
     // 코너 radius는 "안쪽(검정 내부)" 기준으로 기기와 일치시킨다.
@@ -94,20 +96,39 @@ fun StandbyScreen(connecting: Boolean, code: String) {
     // 가로에서는 높이 제약(내용높이 × 비율)이 폭을 키워 박스가 더 커 보인다.
     val contentVerticalPadding = 64.dp
 
+    // 미러링 전환(transition 0→1): 박스가 화면 비율을 유지한 채 전체 화면으로 확장되고,
+    // 배경(검정)과 내용(아이콘+코드)이 사라진다. 박스 비율 = 화면 비율이므로
+    // 균일 스케일(화면폭/박스폭)이면 정확히 화면을 덮는다.
+    var boxWidthPx by remember { mutableStateOf(0) }
+    val boxWidthDp = with(density) { boxWidthPx.toDp() }
+    val targetScale = if (boxWidthDp.value > 0f) config.screenWidthDp.toFloat() / boxWidthDp.value else 1f
+    val boxScale = 1f + (targetScale - 1f) * transition
+    val boxAlpha = 1f - transition
+    val contentAlpha = 1f - transition * transition // 내용은 배경보다 먼저 사라진다
+
     Box(
         Modifier
             .fillMaxSize()
             .background(Color.Black)
+            .graphicsLayer { alpha = boxAlpha }
     ) {
         Surface(
             shape = RoundedCornerShape(cornerRadius),
             color = Color.Black,
             border = BorderStroke(borderWidth, scheme.primary),
-            modifier = Modifier.align(Alignment.Center)
+            modifier = Modifier
+                .align(Alignment.Center)
+                .onSizeChanged { boxWidthPx = it.width }
+                .graphicsLayer {
+                    scaleX = boxScale
+                    scaleY = boxScale
+                }
         ) {
             DeviceAspectBox(aspect = screenAspect) {
                 Column(
-                    Modifier.padding(horizontal = 28.dp, vertical = contentVerticalPadding),
+                    Modifier
+                        .padding(horizontal = 28.dp, vertical = contentVerticalPadding)
+                        .graphicsLayer { alpha = contentAlpha },
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
