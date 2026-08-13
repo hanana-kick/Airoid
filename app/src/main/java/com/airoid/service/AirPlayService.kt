@@ -230,9 +230,9 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
      * 액티비티가 실제 표시 영역 크기를 보고한다(회전/스플릿뷰/윈도우모드 등 모든 리사이즈 시).
      * 광고 해상도(SDP)를 갱신한다. 표시는 GL fit으로 비율을 유지한다(기본).
      *
-     * 실험 모듈: sidecar_rotation 플래그가 켜지면, 세로↔가로 방향 전환 시 세션을 재협상해
-     * 송신기가 새 방향 크기로 재연결하게 한다(Sidecar 방식). 스트림 해상도는 협상 시점에
-     * 고정되어 있어 방향을 바꾸려면 재연결이 필요하다.
+     * 실험 모듈: sidecar_rotation 플래그가 켜지면, 세로↔가로 방향 전환 시
+     * 연결을 유지한 채 비디오 RTP 세션만 중지해 송신기가 새 방향 크기로 재-SETUP하게 한다.
+     * 송신기가 재-SETUP하지 않으면 비디오는 정지된 채 유지된다(실험 필요).
      */
     fun setVideoAreaSize(w: Int, h: Int) {
         if (w <= 0 || h <= 0) return
@@ -247,8 +247,8 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
             val aspect = w.toFloat() / h
             val prev = lastAdvertisedAspect
             if (prev != null && (aspect >= 1f) != (prev >= 1f)) {
-                log("Sidecar mode: orientation flipped to ${w}x${h}; renegotiating session")
-                disconnectClients()
+                log("Sidecar mode: orientation flipped to ${w}x${h}; renegotiating video")
+                reconfigureVideo()
             }
             lastAdvertisedAspect = aspect
         }
@@ -260,6 +260,16 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
         NativeBridge.nativeDisconnectClients(nativeHandle)
         audioRenderer.stop()
         log("Disconnected clients on request")
+    }
+
+    /**
+     * 실험(Sidecar 방식): 연결은 유지한 채 비디오 RTP 세션만 중지한다.
+     * 송신기가 새 광고 해상도로 비디오를 재-SETUP하면 끊김 없이 해상도가 바뀐다.
+     */
+    fun reconfigureVideo() {
+        if (nativeHandle == 0L || _serverState.value != ServerState.RUNNING) return
+        NativeBridge.nativeReconfigureVideo(nativeHandle)
+        log("Video reconfigure requested (Sidecar mode)")
     }
 
     override fun onDestroy() {
