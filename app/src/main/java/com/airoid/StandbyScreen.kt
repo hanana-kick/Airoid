@@ -46,6 +46,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathBuilder
@@ -205,7 +207,7 @@ fun StandbyScreen(connecting: Boolean) {
 
 /**
  * 화면 미러링(에어플레이) 아이콘 — SF Symbol "rectangle.on.rectangle" 참조:
- * 대각선으로 겹친 둥근 모서리의 두 사각형 (뒤쪽은 좌상, 앞쪽은 우하).
+ * 대각선으로 겹친 둥근 **외곽선** 사각형 두 개 (뒤쪽 좌상, 앞쪽 우하).
  */
 private val MirrorIcon: ImageVector = ImageVector.Builder(
     name = "ScreenMirror",
@@ -215,12 +217,22 @@ private val MirrorIcon: ImageVector = ImageVector.Builder(
     viewportHeight = 24f,
 ).apply {
     // 뒤 사각형 (좌상)
-    path(fill = SolidColor(Color.Black)) {
-        roundedRect(3f, 3f, 17f, 17f, 2.5f)
+    path(
+        stroke = SolidColor(Color.Black),
+        strokeLineWidth = 1.8f,
+        strokeLineCap = StrokeCap.Round,
+        strokeLineJoin = StrokeJoin.Round,
+    ) {
+        roundedRect(2.5f, 2.5f, 16.5f, 16.5f, 3f)
     }
     // 앞 사각형 (우하, 겹침)
-    path(fill = SolidColor(Color.Black)) {
-        roundedRect(7f, 7f, 21f, 21f, 2.5f)
+    path(
+        stroke = SolidColor(Color.Black),
+        strokeLineWidth = 1.8f,
+        strokeLineCap = StrokeCap.Round,
+        strokeLineJoin = StrokeJoin.Round,
+    ) {
+        roundedRect(7.5f, 7.5f, 21.5f, 21.5f, 3f)
     }
 }.build()
 
