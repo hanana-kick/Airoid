@@ -135,6 +135,9 @@ fun AiroidApp(service: AirPlayService?) {
                     Modifier
                         .fillMaxSize()
                         .graphicsLayer {
+                            // 교체 페이드: 영상은 transition과 함께 0→1(연결)/1→0(종료)로
+                            // 페이드되어, 스탠바이가 사라지는 순간 "띡" 하고 튀지 않는다.
+                            alpha = t
                             if (mirrored) {
                                 // 연결: "흐림 → 또렷" — 살짝 확대된 상태에서 원래 크기로
                                 val focusScale = 1f + 0.04f * (1f - t)
