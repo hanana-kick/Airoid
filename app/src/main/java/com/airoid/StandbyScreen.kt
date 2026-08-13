@@ -215,10 +215,11 @@ fun DisplayOptionsLayer(
                     }
             )
 
-            // 시트 컨테이너: 가로를 채우되 내용(시트)은 폭 제한 + 중앙 정렬.
+            // 시트 컨테이너: 하단 정렬 + 가로를 채우되 내용(시트)은 폭 제한 + 중앙 정렬.
             // Surface에 fillMaxWidth를 쓰지 않아 widthIn cap이 반드시 적용된다.
             Box(
                 Modifier
+                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .onSizeChanged { sheetHeightPx = it.height }
                     .offset { IntOffset(0, ((1f - fraction.value) * sheetHeightPx).roundToInt()) }
