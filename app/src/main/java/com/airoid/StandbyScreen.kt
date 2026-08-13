@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -47,6 +48,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -228,7 +230,7 @@ fun DisplayOptionsLayer(
             ) {
                 Surface(
                     modifier = Modifier
-                        .widthIn(max = 352.dp)
+                        .widthIn(max = 400.dp)
                         .pointerInput(Unit) {
                             detectVerticalDragGestures(
                                 onVerticalDrag = { _, dragAmount ->
@@ -267,12 +269,19 @@ fun DisplayOptionsLayer(
                                 )
                         )
                         Text(
-                            text = stringResource(R.string.options_title),
+                            text = stringResource(R.string.app_name),
                             style = MaterialTheme.typography.titleLarge,
-                            modifier = Modifier.padding(bottom = 4.dp)
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 4.dp)
                         )
                         Button(
                             onClick = onDisconnectMirroring,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = scheme.error,
+                                contentColor = scheme.onError,
+                            ),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 8.dp),
