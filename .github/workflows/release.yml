@@ -33,6 +33,12 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew :app:assembleRelease --no-daemon
 
+      - name: Dump ffmpeg configure log (on failure)
+        if: failure()
+        run: |
+          find app/.cxx -name "ffmpeg_ep-configure-err.log" -exec sh -c 'echo "=== $1"; cat "$1"' _ {} \;
+          find app/.cxx -name "ffmpeg_ep-configure-*.cmake" -exec sh -c 'echo "=== $1"; head -60 "$1"' _ {} \;
+
       - name: Upload APK to release
         uses: softprops/action-gh-release@v2
         with:
