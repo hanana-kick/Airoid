@@ -1,3 +1,5 @@
+import java.util.Base64
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -7,9 +9,11 @@ plugins {
 android {
     namespace = "com.airoid"
     compileSdk = 36
-    // NDK installed via Homebrew (r29); point AGP at it directly.
+    // 로컬(Homebrew NDK)이 있으면 그걸 쓰고, 없으면(CI 등) AGP가 ndkVersion을 다운로드한다
     ndkVersion = "29.0.14206865"
-    ndkPath = "/opt/homebrew/share/android-ndk"
+    if (file("/opt/homebrew/share/android-ndk").exists()) {
+        ndkPath = "/opt/homebrew/share/android-ndk"
+    }
 
     defaultConfig {
         applicationId = "com.airoid"
@@ -35,11 +39,27 @@ android {
         }
     }
 
+    // 릴리즈 서명: CI(Gitea Actions)가 시크릿으로 키스토어를 넘기면 서명, 아니면 unsigned.
+    signingConfigs {
+        val ks = System.getenv("KEYSTORE_BASE64")
+        if (!ks.isNullOrEmpty()) {
+            create("release") {
+                val f = File.createTempFile("airoid-keystore", ".jks")
+                f.writeBytes(Base64.getDecoder().decode(ks))
+                storeFile = f
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
         }
         release {
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
