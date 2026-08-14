@@ -36,5 +36,5 @@ jobs:
       - name: Upload APK to release
         uses: https://gitea.com/actions/release-action@main
         with:
-          files: app/build/outputs/apk/release/app-release.apk
+          files: app/build/outputs/apk/release/*.apk
           api_key: ${{ secrets.GITEA_TOKEN }}
