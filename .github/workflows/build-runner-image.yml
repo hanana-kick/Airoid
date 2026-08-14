@@ -31,4 +31,4 @@ jobs:
         with:
           context: docker/android-sdk
           push: true
-          tags: ghcr.io/${{ github.repository }}/android-sdk:36
+          tags: ghcr.io/hanana-kick/airoid/android-sdk:36
