@@ -36,8 +36,11 @@ jobs:
       - name: Dump ffmpeg configure log (on failure)
         if: failure()
         run: |
-          find app/.cxx -name "ffmpeg_ep-configure-err.log" -exec sh -c 'echo "=== $1"; cat "$1"' _ {} \;
-          find app/.cxx -name "ffmpeg_ep-configure-*.cmake" -exec sh -c 'echo "=== $1"; head -60 "$1"' _ {} \;
+          ls -la app/src/main/cpp/third_party/ffmpeg/configure
+          head -1 app/src/main/cpp/third_party/ffmpeg/configure | xxd | head -2
+          ls /usr/local/lib/android/sdk/ndk/*/toolchains/llvm/prebuilt/*/bin/ | grep -E "clang" | head -5
+          find app/.cxx -name "ffmpeg_ep-configure-out.log" -exec sh -c 'echo "=== OUT $1"; cat "$1"' _ {} \;
+          find app/.cxx -name "ffmpeg_ep-configure-err.log" -exec sh -c 'echo "=== ERR $1"; cat "$1"' _ {} \;
 
       - name: Upload APK to release
         uses: softprops/action-gh-release@v2
