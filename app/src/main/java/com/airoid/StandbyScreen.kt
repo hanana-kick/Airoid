@@ -59,8 +59,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -81,66 +83,104 @@ import kotlinx.coroutines.launch
  * GL 렌더러가 영상+외곽선(링)을 한 트랜스폼으로 그린다 (싱크 불일치 원천 제거).
  */
 @Composable
-fun StandbyScreen(code: String, contentAlpha: Float = 1f, showBackground: Boolean = true) {
+fun StandbyScreen(
+    code: String,
+    contentAlpha: Float = 1f,
+    showBackground: Boolean = true,
+    onMinFraction: (Float) -> Unit = {},
+) {
     val scheme = MaterialTheme.colorScheme
     val config = LocalConfiguration.current
+    val typography = MaterialTheme.typography
+    val density = LocalDensity.current
+    val textMeasurer = rememberTextMeasurer()
+    val appName = stringResource(R.string.app_name)
     // 기기 화면 비율: 세로일 때 0.755 (1848:2448), 회전 시 자동 반영
     val screenAspect = config.screenWidthDp.toFloat() / config.screenHeightDp.toFloat()
     // 코너 radius는 "안쪽(검정 내부)" 기준으로 기기와 일치시킨다.
     // 테두리가 shape 안쪽에 그려지므로 shape radius = 기기 radius + 테두리 두께.
     val cornerRadius = deviceCornerRadiusDp() + BORDER_WIDTH_DP
-    // 상하 패딩을 크게 유지한다(항상 64dp).
-    val contentVerticalPadding = 64.dp
 
-    Box(Modifier.fillMaxSize()) {
-        // 검정 배경 — 전환 중에는 GL clear 검정이 배경을 담당하므로 생략된다
-        if (showBackground) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(Color.Black)
-            )
-        }
-        // 박스(외곽선) + 내용: 전환 중엔 contentAlpha로 아이콘/제목/코드가 함께 페이드.
-        // 박스 테두리는 t=0(대기/게이트 전)에서만 그린다 — 전환이 시작되면 같은
-        // 위치(0.48×창)의 GL 링이 이어받으므로 외곽선이 두 개로 겹쳐 보이지 않는다.
-        DeviceAspectBox(
-            aspect = screenAspect,
-            growth = 0f,
-            modifier = Modifier.align(Alignment.Center).alpha(contentAlpha),
-            border = if (contentAlpha >= 1f) {
-                Modifier.border(BORDER_WIDTH_DP, scheme.primary, RoundedCornerShape(cornerRadius))
-            } else {
-                Modifier
-            },
-        ) {
-            Column(
-                Modifier
-                    .padding(horizontal = 28.dp, vertical = contentVerticalPadding),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // AirPlay 아이콘 (상단)
-                Icon(
-                    imageVector = MirrorIcon,
-                    contentDescription = null,
-                    tint = scheme.onBackground,
-                    modifier = Modifier.size(44.dp),
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        // 박스(외곽선) 최소 비율: 0.48 고정이 아니라, 내용(제목+코드 세로 배치)이
+        // 들어가는 크기까지 커진다 — 내용을 줄이지 않고 박스가 내용을 감싼다.
+        // 실제 렌더 스타일과 동일하게 측정(타이틀 Bold, 코드 SemiBold+모노)하고,
+        // GL 링의 시작 크기와 공유하기 위해 MainActivity에 보고한다.
+        val minFraction = remember(code, maxWidth, density, typography, textMeasurer, appName) {
+            val titleW = textMeasurer.measure(
+                AnnotatedString(appName),
+                typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
+            ).size.width
+            val codeW = textMeasurer.measure(
+                AnnotatedString(code),
+                typography.headlineSmall.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontFamily = FontFamily.Monospace,
                 )
-                // "Airoid [코드]" — 코드는 코드박스 스타일로
-                Row(
-                    Modifier.padding(top = 18.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+            ).size.width
+            with(density) {
+                // 세로 배치: 내용 폭 = max(제목, 코드) + 코드박스/컬럼 패딩.
+                // +12dp 안전 여유 — 측정/렌더 폭이 1px만 초과해도 maxLines=1이
+                // 줄바꿈으로 두 번째 단어를 통째로 버리므로(코드 잘림) 여유를 둔다.
+                val neededW = maxOf(titleW, codeW) + (12.dp * 2 + 20.dp * 2 + 12.dp).toPx()
+                // 내용 높이: 패딩(24×2) + 아이콘(44) + 제목(12+36) + 코드(8+32)
+                val neededH = (24.dp * 2 + 44.dp + 12.dp + 36.dp + 8.dp + 32.dp).toPx()
+                val boxW = maxWidth.toPx()
+                val boxH = (maxWidth / screenAspect).toPx()
+                maxOf(BOX_MIN_FRACTION, neededW / boxW, neededH / boxH)
+            }
+        }
+        SideEffect { onMinFraction(minFraction) }
+
+        Box(Modifier.fillMaxSize()) {
+            // 검정 배경 — 전환 중에는 GL clear 검정이 배경을 담당하므로 생략된다
+            if (showBackground) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black)
+                )
+            }
+            // 박스(외곽선) + 내용: 전환 중엔 contentAlpha로 아이콘/제목/코드가 함께 페이드.
+            // 박스 테두리는 t=0(대기/게이트 전)에서만 그린다 — 전환이 시작되면 같은
+            // 위치(minFraction×창)의 GL 링이 이어받으므로 외곽선이 두 개로 겹쳐 보이지 않는다.
+            DeviceAspectBox(
+                aspect = screenAspect,
+                growth = 0f,
+                minFraction = minFraction,
+                modifier = Modifier.align(Alignment.Center).alpha(contentAlpha),
+                border = if (contentAlpha >= 1f) {
+                    Modifier.border(BORDER_WIDTH_DP, scheme.primary, RoundedCornerShape(cornerRadius))
+                } else {
+                    Modifier
+                },
+            ) {
+                Column(
+                    Modifier
+                        .padding(horizontal = 20.dp, vertical = 24.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        text = stringResource(R.string.app_name),
-                        color = scheme.onBackground,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
+                    // AirPlay 아이콘 (상단)
+                    Icon(
+                        imageVector = MirrorIcon,
+                        contentDescription = null,
+                        tint = scheme.onBackground,
+                        modifier = Modifier.size(44.dp),
                     )
+                    // "Airoid" — 제목
+                    Text(
+                        text = appName,
+                        color = scheme.onBackground,
+                        style = typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                    // 페어링 코드 — 제목 아래 줄바꿈 (가로 폭을 타이틀+코드 합이 아닌
+                    // max(타이틀, 코드)로 줄여 긴 코드도 박스 안에 들어가게 한다)
                     CodeBox(
                         code = code,
-                        modifier = Modifier.padding(start = 10.dp),
+                        modifier = Modifier.padding(top = 8.dp),
                     )
                 }
             }
@@ -167,6 +207,8 @@ private fun CodeBox(code: String, modifier: Modifier = Modifier) {
             fontWeight = FontWeight.SemiBold,
             fontFamily = FontFamily.Monospace,
             maxLines = 1,
+            softWrap = false,
+            textAlign = TextAlign.Center,
         )
     }
 }
@@ -188,11 +230,12 @@ private fun DeviceAspectBox(
     growth: Float,
     modifier: Modifier = Modifier,
     border: Modifier = Modifier,
+    minFraction: Float = BOX_MIN_FRACTION,
     content: @Composable () -> Unit,
 ) {
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
-        // 최소 크기: 창 폭의 BOX_MIN_FRACTION배 (아이콘+타이틀+코드가 들어가는 기기 프레임 크기)
-        val minW = maxWidth * BOX_MIN_FRACTION
+        // 최소 크기: 창 폭의 minFraction배 — 내용이 크면(긴 코드 등) 그에 맞게 커진다
+        val minW = maxWidth * minFraction
         // 최대 크기: 창 폭의 BOX_MAX_FRACTION배 — 외곽선이 화면 밖으로 나간다.
         val maxW = maxWidth * BOX_MAX_FRACTION
         val width = minW + (maxW - minW) * growth

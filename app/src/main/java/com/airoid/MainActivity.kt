@@ -24,6 +24,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -137,6 +138,10 @@ fun AiroidApp(service: AirPlayService?) {
         service?.setVideoBorder(borderColorArgb, borderRadiusPx, borderWidthPx)
     }
 
+    // 스탠바이 박스의 최소 비율 — 내용(긴 코드 등)에 따라 0.48보다 커질 수 있다.
+    // GL 링의 시작 크기와 공유해 진입/종료 핸드오프에서 외곽선이 어긋나지 않게 한다.
+    var standbyMinFraction by remember { mutableFloatStateOf(BOX_MIN_FRACTION) }
+
     // 전환 중 영상+외곽선을 한 몸으로 매 프레임 스케일 동기화 (GL에서 축소 — 레이어 없음).
     // 부모=외곽선(링): 1.1까지 커져 화면 밖으로 나간다. 자식=컨테이너(영상):
     // 스케일은 링을 따르고(1.0 캡), 투명도(fade)도 같은 t를 써서 페이드와 사이즈가
@@ -145,7 +150,7 @@ fun AiroidApp(service: AirPlayService?) {
     // 박스와 픽셀 단위로 일치한다 — 별도 보정 불필요.
     LaunchedEffect(service, transition) {
         snapshotFlow { transition.value }.collect { t ->
-            val boxFraction = BOX_MIN_FRACTION + (BOX_MAX_FRACTION - BOX_MIN_FRACTION) * t
+            val boxFraction = standbyMinFraction + (BOX_MAX_FRACTION - standbyMinFraction) * t
             service?.setVideoTransition(boxFraction, t)
         }
     }
@@ -186,6 +191,7 @@ fun AiroidApp(service: AirPlayService?) {
                     code = pairingCode,
                     contentAlpha = (1f - t).coerceIn(0f, 1f),
                     showBackground = t == 0f,
+                    onMinFraction = { standbyMinFraction = it },
                 )
             }
         }
