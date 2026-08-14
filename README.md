@@ -1,4 +1,6 @@
-<img src="docs/icon.png" width="96" height="96" alt="Airoid" />
+<p align="center">
+  <img src="docs/icon.png" width="96" height="96" alt="Airoid" />
+</p>
 
 # Airoid
 
