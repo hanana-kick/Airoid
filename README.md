@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/icon.png" width="96" height="96" alt="Airoid" />
+  <img src="docs/icon.png" width="160" height="160" alt="Airoid" />
 </p>
 
 # Airoid
