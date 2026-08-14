@@ -39,7 +39,9 @@ if(SANITIZE)
 endif()
 
 ExternalProject_Add(ffmpeg_ep
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ffmpeg
+    # 실제 디렉토리는 FFmpeg(대문자) — macOS는 대소문자 무시라 소문자로도 동작했지만
+    # Linux CI는 대소문자 구분이라 이 경로가 정확해야 한다.
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/FFmpeg
     DOWNLOAD_COMMAND ""
     PREFIX ${CMAKE_BINARY_DIR}/ffmpeg-ep
     INSTALL_DIR ${FFMPEG_INSTALL}
