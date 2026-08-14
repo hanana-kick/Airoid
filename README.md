@@ -1,4 +1,4 @@
-# <img src="docs/icon.png" width="64" height="64" alt="Airoid"> Airoid
+# <img src="docs/icon.png" width="44" height="44" alt="Airoid" style="vertical-align: middle"> Airoid
 
 Android용 AirPlay 수신기. 맥/아이폰의 화면 미러링을 안드로이드 기기를 보조 화면으로
 받아 표시하고, AirPlay 오디오를 수신한다. 수신 엔진은 [UxPlay](app/src/main/cpp/third_party/UxPlay)를 기반으로 한다.
