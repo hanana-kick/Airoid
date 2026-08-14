@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: synology-android
+    runs-on: android
     timeout-minutes: 120
     steps:
       - name: Checkout
