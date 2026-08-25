@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  어댑티브 아이콘 포그라운드: 화면 프레임 + 안테나 + 안드로이드 머리 (검정 단색).
+  원본 내용(1254 뷰포트, 스트로크 포함 x 69~1185 / y 236~1019)을 중심(627, 627.5)
+  기준 0.45배 축소해 어댑티브 안전 영역(중앙 66/108) 안에 여유 패딩을 두고 맞춘다 —
+  원형/둥근사각 어떤 마스크에서도 잘리지 않는다.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="1254"
+    android:viewportHeight="1254">
+
+    <group
+        android:scaleX="0.45"
+        android:scaleY="0.45"
+        android:pivotX="627"
+        android:pivotY="627.5">
+
+        <!-- 둥근 화면 프레임 -->
+        <path
+            android:pathData="M326,929 H218 C159.5,929 112.5,881.5 112.5,823 V386 C112.5,327.5 160,279.5 218.5,279.5 H1035.5 C1094,279.5 1141.5,327 1141.5,385.5 V823 C1141.5,881.5 1094,929 1035.5,929 H928"
+            android:fillColor="#00000000"
+            android:strokeColor="#FF000000"
+            android:strokeWidth="87"
+            android:strokeLineCap="butt"
+            android:strokeLineJoin="round" />
+
+        <!-- 안테나 -->
+        <path
+            android:pathData="M446,729 L500,811 M808,729 L754,811"
+            android:fillColor="#00000000"
+            android:strokeColor="#FF000000"
+            android:strokeWidth="49"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+
+        <!-- 안드로이드 머리 -->
+        <path
+            android:pathData="M350,1019 C350,890.3 474,786 627,786 C780,786 904,890.3 904,1019 Z"
+            android:fillColor="#FF000000" />
+
+    </group>
+
+</vector>

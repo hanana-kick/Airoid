@@ -1,0 +1,370 @@
+package com.airoid.renderer
+
+import android.media.MediaCodec
+import android.media.MediaCodecList
+import android.media.MediaFormat
+import android.util.Log
+import android.view.Surface
+
+class VideoRenderer {
+
+    private val lock = Object()
+    private val pipeline = VideoPipeline().apply {
+        onFirstFramePresented = { this@VideoRenderer.onFirstFramePresented?.invoke() }
+    }
+    private var codec: MediaCodec? = null
+    private var displaySurface: Surface? = null
+    private var currentH265 = false
+    @Volatile private var firstFrameArrived = false
+    private var videoWidth = 0
+    private var videoHeight = 0
+    private var firstFrameQueued = false
+
+    // stats
+    @Volatile var fps = 0; private set
+    @Volatile var bitrateBps = 0L; private set
+    @Volatile var frameCount = 0L; private set
+    @Volatile var codecName = ""; private set
+    @Volatile var droppedFrames = 0L; private set
+    @Volatile var framePacingJitterUs = 0L; private set
+
+    /** 첫 프레임이 화면에 실제 표시되었을 때 호출 (전환 애니메이션 게이트). */
+    @Volatile var onFirstFramePresented: (() -> Unit)? = null
+
+    var enforceSdr = true
+    var keyAllowFrameDrop = true
+    var realtimeDecoderPriority = true
+    var lowLatency = true
+    var operatingRateHint = false
+    var scheduledOutputBufferRelease = true
+    var benchmarkLog = false
+    var benchmarkLogCallback: ((String) -> Unit)? = null
+    private var _framesThisSec = 0
+    private var _bytesThisSec = 0L
+    private var _lastStatReset = 0L
+    private val _frameIntervalsNs = LongArray(120)
+    private var _frameIntervalIdx = 0
+    private var _frameIntervalCount = 0
+    private var _lastOutputFrameNs = 0L
+    // anchors that map decoder PTS (us) to System.nanoTime() for scheduled rendering
+    private var _ptsBaseUs = Long.MIN_VALUE
+    private var _wallBaseNs = 0L
+
+    fun setResolution(w: Int, h: Int) = synchronized(lock) {
+        if (w == videoWidth && h == videoHeight) return@synchronized
+        videoWidth = w
+        videoHeight = h
+        pipeline.setVideoSize(w, h)
+        // ScreenRotate: 방향/해상도 변경 시 송신기가 새 Codec Data(SPS/PPS)를 보낸다.
+        // 실행 중 코덱은 기존 포맷으로 고정되어 있으므로 재시작해야 새 크기로 디코딩된다.
+        // (TCP/RTSP/페어링은 유지 — 다음 키프레임에서 새 포맷으로 재시작)
+        if (codec != null) stopCodec()
+    }
+
+    // doesn't restart codec; decoder renders into pipeline's own persistent surface
+    fun setSurface(surface: Surface) = synchronized(lock) {
+        displaySurface = surface
+        pipeline.setDisplaySurface(surface)
+    }
+
+    fun clearSurface(surface: Surface) = synchronized(lock) {
+        if (displaySurface !== surface) return@synchronized
+        displaySurface = null
+        pipeline.setDisplaySurface(null)
+    }
+
+    /** 전환 애니메이션: 스케일(박스 크기 → 화면 밖) + 컨테이너 페이드(영상만). */
+    fun setVideoTransition(scale: Float, fade: Float) {
+        pipeline.setTransition(scale, fade)
+    }
+
+    /** 새 연결 세션 시작: 전환 게이트를 재무장하고, PTS 스케줄 베이스를 리셋한다
+     * (재연결 시 애니메이션 재생 보장 + 이전 세션의 PTS 기준으로 새 프레임이
+     * 미래로 스케줄되어 멈추는 것 방지). */
+    fun onSessionStart() {
+        synchronized(lock) {
+            _ptsBaseUs = Long.MIN_VALUE
+            _wallBaseNs = 0L
+        }
+        pipeline.resetGate()
+    }
+
+    /** 외곽선(링) 설정: 테마 색, 내각 radius(기기 radius), 테두리 두께 — GL에서 영상과 함께 그린다. */
+    fun setVideoBorder(colorArgb: Int, radiusPx: Float, widthPx: Float) {
+        pipeline.setVideoBorder(colorArgb, radiusPx, widthPx)
+    }
+
+    private fun _updateStats(size: Int) {
+        val now = System.currentTimeMillis()
+        if (now - _lastStatReset >= 1000) {
+            fps = _framesThisSec
+            bitrateBps = _bytesThisSec * 8
+            framePacingJitterUs = _computeFramePacingJitterUs()
+            _framesThisSec = 0
+            _bytesThisSec = 0
+            _lastStatReset = now
+            if (benchmarkLog) _emitBenchmarkLine()
+        }
+        _framesThisSec++
+        _bytesThisSec += size
+        frameCount++
+    }
+
+    private fun _emitBenchmarkLine() {
+        val msg = "fps=$fps bitrate=${bitrateBps / 1000}kbps " +
+            "jitter=${framePacingJitterUs}us frames=$frameCount " +
+            "dropped=$droppedFrames codec=$codecName " +
+            "res=${videoWidth}x${videoHeight}"
+        Log.i(BENCH_TAG, msg)
+        benchmarkLogCallback?.invoke(msg)
+    }
+
+    fun feedFrame(data: ByteArray, ntpTimeNs: Long, isH265: Boolean) {
+        _updateStats(data.size)
+        if (!firstFrameArrived) {
+            firstFrameArrived = true
+            Log.i(TAG, "First frame arrived: ${data.size}B pts=${ntpTimeNs / 1000}us")
+        }
+
+        synchronized(lock) {
+            if (videoWidth == 0 || videoHeight == 0) return
+
+            if (codec == null || isH265 != currentH265) {
+                // a stale reference frame decodes to corruption, so wait for a keyframe to (re)start
+                if (!_isKeyframe(data, isH265)) {
+                    if (codec != null) stopCodec()
+                    return
+                }
+                stopCodec()
+            }
+
+            try {
+                if (codec == null) startCodec(isH265)
+                _feedToCodec(data, ntpTimeNs)
+                drainOutput()
+            } catch (e: Exception) {
+                Log.w(TAG, "Codec error, resetting", e)
+                stopCodec()
+            }
+        }
+    }
+
+    private fun _feedToCodec(data: ByteArray, ntpTimeNs: Long) {
+        val c = codec ?: return
+        // dropping a frame desyncs decoder until the next keyframe, but source would only send one on (re)connect
+        val retries = if (firstFrameQueued) FEED_RETRIES else FIRST_FEED_RETRIES
+        repeat(retries) {
+            val idx = c.dequeueInputBuffer(FEED_WAIT_US)
+            if (idx >= 0) {
+                val buf = c.getInputBuffer(idx) ?: return
+                buf.clear()
+                buf.put(data)
+                c.queueInputBuffer(idx, 0, data.size, ntpTimeNs / 1000, 0)
+                firstFrameQueued = true
+                return
+            }
+            drainOutput()
+        }
+        droppedFrames++
+        Log.w(TAG, "Decoder input queue full; dropping frame. drops=$droppedFrames")
+    }
+
+    private fun _isKeyframe(data: ByteArray, isH265: Boolean): Boolean {
+        if (data.size < 5) return false
+        var i = 0
+        while (i <= data.size - 5) {
+            if (data[i] == 0.toByte() && data[i + 1] == 0.toByte() &&
+                data[i + 2] == 0.toByte() && data[i + 3] == 1.toByte()) {
+                val key = if (isH265) {
+                    val type = (data[i + 4].toInt() shr 1) and 0x3F
+                    type == 19 || type == 20 || type == 21 || type == 32 || type == 33
+                } else {
+                    val type = data[i + 4].toInt() and 0x1F
+                    type == 5 || type == 7
+                }
+                if (key) return true
+            }
+            i++
+        }
+        return false
+    }
+
+    private fun startCodec(h265: Boolean) {
+        pipeline.start()
+        pipeline.setVideoSize(videoWidth, videoHeight)
+        val s = pipeline.inputSurface ?: return
+        currentH265 = h265
+        val mime = if (h265) MediaFormat.MIMETYPE_VIDEO_HEVC else MediaFormat.MIMETYPE_VIDEO_AVC
+
+        val format = MediaFormat.createVideoFormat(mime, videoWidth, videoHeight)
+        val maxInput = maxOf(videoWidth * videoHeight * 3 / 4, 1024 * 1024)
+        format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, maxInput)
+        if (enforceSdr) {
+            format.setInteger(MediaFormat.KEY_COLOR_STANDARD, MediaFormat.COLOR_STANDARD_BT709)
+            format.setInteger(MediaFormat.KEY_COLOR_RANGE, MediaFormat.COLOR_RANGE_LIMITED)
+            format.setInteger(MediaFormat.KEY_COLOR_TRANSFER, MediaFormat.COLOR_TRANSFER_SDR_VIDEO)
+        }
+        if (realtimeDecoderPriority) {
+            format.setInteger(MediaFormat.KEY_PRIORITY, 0)
+        }
+        if (operatingRateHint && android.os.Build.VERSION.SDK_INT >= 23) {
+            format.setInteger(MediaFormat.KEY_OPERATING_RATE, Short.MAX_VALUE.toInt())
+        }
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            format.setInteger(MediaFormat.KEY_ALLOW_FRAME_DROP, if (keyAllowFrameDrop) 1 else 0)
+        }
+        if (lowLatency && android.os.Build.VERSION.SDK_INT >= 30) {
+            format.setInteger(MediaFormat.KEY_LOW_LATENCY, 1)
+        }
+
+        firstFrameQueued = false
+        try {
+            _startDecoder(MediaCodec.createDecoderByType(mime), format, s, h265)
+        } catch (e: Exception) {
+            // strict hw decoders reject configs beyond their real limits
+            val sw = _softwareDecoder(mime)?.takeIf {
+                it.getCapabilitiesForType(mime).videoCapabilities
+                    ?.isSizeSupported(videoWidth, videoHeight) == true
+            } ?: throw e
+            Log.w(TAG, "Hardware decoder failed, trying software fallback", e)
+            _startDecoder(MediaCodec.createByCodecName(sw.name), format, s, h265)
+        }
+        Log.i(TAG, "Video codec started: $mime ${videoWidth}x${videoHeight} ($codecName)")
+    }
+
+    private fun _startDecoder(c: MediaCodec, format: MediaFormat, surface: Surface, h265: Boolean) {
+        try {
+            c.configure(format, surface, null, 0)
+            c.start()
+        } catch (e: Exception) {
+            try { c.release() } catch (_: Exception) {}
+            throw e
+        }
+        codec = c
+        codecName = (if (h265) "H.265" else "H.264") + " (${c.name})"
+    }
+
+    private fun stopCodec() {
+        firstFrameArrived = false
+        _frameIntervalIdx = 0
+        _frameIntervalCount = 0
+        _lastOutputFrameNs = 0L
+        _ptsBaseUs = Long.MIN_VALUE
+        _wallBaseNs = 0L
+        codec?.let {
+            try {
+                it.stop()
+                it.release()
+            } catch (_: Exception) {}
+        }
+        codec = null
+    }
+
+    private fun drainOutput() {
+        val c = codec ?: return
+        val info = MediaCodec.BufferInfo()
+        while (true) {
+            val idx = c.dequeueOutputBuffer(info, 0)
+            if (idx < 0) break
+            _recordOutputFrameTime()
+            if (scheduledOutputBufferRelease) {
+                // schedule frame at VSYNC matching its NTP presentation time
+                val ptsUs = info.presentationTimeUs
+                if (_ptsBaseUs == Long.MIN_VALUE) {
+                    _ptsBaseUs = ptsUs
+                    _wallBaseNs = System.nanoTime()
+                }
+                c.releaseOutputBuffer(idx, _wallBaseNs + (ptsUs - _ptsBaseUs) * 1000L)
+            } else {
+                c.releaseOutputBuffer(idx, true)
+            }
+        }
+    }
+
+    fun release() = synchronized(lock) {
+        stopCodec()
+        pipeline.release()
+        fps = 0; bitrateBps = 0; frameCount = 0; codecName = ""
+        droppedFrames = 0; framePacingJitterUs = 0
+        _framesThisSec = 0; _bytesThisSec = 0
+        _frameIntervalIdx = 0; _frameIntervalCount = 0; _lastOutputFrameNs = 0L
+    }
+
+    private fun _recordOutputFrameTime() {
+        val now = System.nanoTime()
+        if (_lastOutputFrameNs > 0) {
+            _frameIntervalsNs[_frameIntervalIdx % _frameIntervalsNs.size] = now - _lastOutputFrameNs
+            _frameIntervalIdx++
+            _frameIntervalCount++
+        }
+        _lastOutputFrameNs = now
+    }
+
+    private fun _computeFramePacingJitterUs(): Long {
+        val count = _frameIntervalCount.coerceAtMost(_frameIntervalsNs.size)
+        if (count < 2) return 0
+
+        var sum = 0.0
+        var sumSq = 0.0
+        for (i in 0 until count) {
+            val interval = _frameIntervalsNs[i].toDouble()
+            sum += interval
+            sumSq += interval * interval
+        }
+        val mean = sum / count
+        val variance = (sumSq / count) - (mean * mean)
+        return (kotlin.math.sqrt(variance.coerceAtLeast(0.0)) / 1000.0).toLong()
+    }
+
+    companion object {
+        private const val TAG = "VideoRenderer"
+        private const val BENCH_TAG = "BENCHMARK"
+        private const val FEED_WAIT_US = 5_000L
+        private const val FEED_RETRIES = 10
+        private const val FIRST_FEED_RETRIES = 50
+
+        fun supportsH265(): Boolean {
+            val list = MediaCodecList(MediaCodecList.ALL_CODECS)
+            return list.codecInfos.any { info ->
+                !info.isEncoder && info.supportedTypes.any {
+                    it.equals(MediaFormat.MIMETYPE_VIDEO_HEVC, ignoreCase = true)
+                }
+            }
+        }
+
+        // smallest limits across codecs the sender may pick; unknown limits assume 1080p, which any device decodes
+        fun maxSupportedResolution(h265: Boolean): Pair<Int, Int> {
+            val mimes = listOfNotNull(
+                MediaFormat.MIMETYPE_VIDEO_AVC,
+                MediaFormat.MIMETYPE_VIDEO_HEVC.takeIf { h265 },
+            )
+            return mimes
+                .map { mime ->
+                    _decoderCaps(mime)?.let { it.supportedWidths.upper to it.supportedHeights.upper }
+                        ?: (1920 to 1080)
+                }
+                .reduce { (w1, h1), (w2, h2) -> minOf(w1, w2) to minOf(h1, h2) }
+        }
+
+        // caps of the decoder createDecoderByType would pick
+        private fun _decoderCaps(mime: String) = try {
+            MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos
+                .firstOrNull { info ->
+                    !info.isEncoder && info.supportedTypes.any { it.equals(mime, ignoreCase = true) }
+                }?.getCapabilitiesForType(mime)?.videoCapabilities
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to get decoder capabilities", e)
+            null
+        }
+
+        private fun _softwareDecoder(mime: String) =
+            MediaCodecList(MediaCodecList.ALL_CODECS).codecInfos.firstOrNull { info ->
+                !info.isEncoder && info.supportedTypes.any { it.equals(mime, ignoreCase = true) } &&
+                    (if (android.os.Build.VERSION.SDK_INT >= 29) info.isSoftwareOnly
+                    else info.name.lowercase().let {
+                        it.startsWith("omx.google.") || it.startsWith("c2.android.") ||
+                            (!it.startsWith("omx.") && !it.startsWith("c2."))
+                    })
+            }
+    }
+}

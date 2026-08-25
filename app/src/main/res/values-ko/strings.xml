@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Airoid</string>
+    <string name="tagline">AirPlay 수신기 — 이 기기를 맥의 보조 화면으로 사용하세요</string>
+    <string name="option_end_mirroring">미러링 종료</string>
+    <string name="notification_channel">Airoid 수신기</string>
+    <string name="notification_title">Airoid 미러링 대기 중</string>
+    <string name="notification_active_title">Airoid 미러링 중</string>
+    <string name="notification_text">맥의 AirPlay 수신기로 동작 중</string>
+</resources>

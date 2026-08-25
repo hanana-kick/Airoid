@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Airoid</string>
+    <string name="tagline">AirPlay 接收器 — 将此设备用作 Mac 的副屏幕</string>
+    <string name="option_end_mirroring">结束镜像</string>
+    <string name="notification_channel">Airoid 接收器</string>
+    <string name="notification_title">Airoid 等待镜像</string>
+    <string name="notification_active_title">Airoid 正在镜像</string>
+    <string name="notification_text">正在作为 Mac 的 AirPlay 接收器运行</string>
+</resources>
