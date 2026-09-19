@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  빠른 설정 타일 아이콘: 에어플레이 심볼(화면 + 위를 향한 삼각형, SF Symbol
+  "airplay.video" 형태)을 흰색 단색으로. QS 패널 배경은 어둡고 타일 아이콘은
+  흰색 단색으로. QS 패널 배경은 어둡고 타일 아이콘은 흰색이 기본이다. 중앙 70% 크기로 배치
+  (스트로크는 축소 보정 2.8). 화면 사각형(주 시각 질량)의 중심이 타일 중심에 오도록
+  1.4 아래로 내려 위로 올라가 보이는 것을 보정한다.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <group
+        android:scaleX="0.7"
+        android:scaleY="0.7"
+        android:pivotX="12"
+        android:pivotY="12"
+        android:translateY="1.4">
+
+        <!-- 화면 외곽선 (하단 중앙 열림) -->
+        <path
+            android:pathData="M5,17 L4,17 C2.89543,17 2,16.1046 2,15 L2,5 C2,3.89543 2.89543,3 4,3 L20,3 C21.1046,3 22,3.89543 22,5 L22,15 C22,16.1046 21.1046,17 20,17 L19,17"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="2.8"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:fillColor="#00000000" />
+
+        <!-- 위를 향하는 삼각형 -->
+        <path
+            android:pathData="M12,16 L18,21 L6,21 Z"
+            android:fillColor="#FFFFFFFF" />
+
+    </group>
+
+</vector>

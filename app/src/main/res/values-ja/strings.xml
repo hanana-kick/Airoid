@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Airoid</string>
+    <string name="tagline">AirPlay レシーバー — このデバイスを Mac のセカンドスクリーンとして使用</string>
+    <string name="option_end_mirroring">ミラーリングを終了</string>
+    <string name="notification_channel">Airoid レシーバー</string>
+    <string name="notification_title">Airoid ミラーリング待機中</string>
+    <string name="notification_active_title">Airoid ミラーリング中</string>
+    <string name="notification_text">Mac の AirPlay レシーバーとして動作中</string>
+</resources>
